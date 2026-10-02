@@ -1205,6 +1205,212 @@ function ArenaGraph() {
   );
 }
 
+/* One pass through tick(): read the slot, get the ogre's move, ask the model,
+   apply the thresholds, let the arena resolve it, then route. */
+function TickNode() {
+  const fast = "var(--accent)";
+  const line = "var(--hairline-strong)";
+  const steps: [string, string, boolean][] = [
+    ["state[\"spell\"]", "is a spell ready?", false],
+    ["arena.telegraph", "the ogre's move", false],
+    ["system_one", "the model answers", true],
+    ["choose()", "thresholds → action", false],
+    ["arena.respond", "resolves the blow", false],
+  ];
+  return (
+    <svg viewBox="0 0 680 214" role="img"
+         aria-label="One pass through tick: read whether a spell is ready, get the ogre's move from the arena, ask the Discriminative model, apply the thresholds in choose(), and let the arena resolve the blow. Then route: next to check_spell while the match goes on; recast to read_rune as well when a spell was just cast; done to summarise when someone reaches 0 HP or tick 60.">
+      <defs><Arrow id="tn-a" color={line} /><Arrow id="tn-b" color={fast} /></defs>
+      {steps.map(([title, note, accent], i) => (
+        <g key={title}>
+          <Box x={10 + i * 134} y={30} w={118} h={50} title={title} note={note} accent={accent} />
+          {i < steps.length - 1 && (
+            <line x1={128 + i * 134} y1="55" x2={142 + i * 134} y2="55" stroke={line} markerEnd="url(#tn-a)" />
+          )}
+        </g>
+      ))}
+      <text x={10} y={18} style={faint}>one tick</text>
+      <text x={327} y={98} textAnchor="middle" style={{ ...faint, fill: fast }}>awaited: the slow branch keeps running</text>
+
+      {/* routes */}
+      <line x1="605" y1="80" x2="605" y2="120" stroke={line} />
+      <line x1="122" y1="120" x2="605" y2="120" stroke={line} />
+      <text x={598} y={113} textAnchor="end" style={faint}>route, from the result</text>
+      <line x1="122" y1="120" x2="122" y2="146" stroke={fast} markerEnd="url(#tn-b)" />
+      <line x1="340" y1="120" x2="340" y2="146" stroke={fast} markerEnd="url(#tn-b)" />
+      <line x1="530" y1="120" x2="530" y2="146" stroke={line} markerEnd="url(#tn-a)" />
+      <Box x={22} y={148} w={200} h={50} title="next → check_spell" note="the match goes on" accent />
+      <Box x={240} y={148} w={200} h={50} title="recast → read_rune" note="a spell was cast; together with next" />
+      <Box x={458} y={148} w={144} h={50} title="done → summarise" note="0 HP, or tick 60" />
+    </svg>
+  );
+}
+
+/* check_spell(): a look at the slot that never waits, then back to tick. */
+function CheckSpellNode() {
+  const fast = "var(--accent)";
+  const line = "var(--hairline-strong)";
+  return (
+    <svg viewBox="0 0 680 178" role="img"
+         aria-label="check_spell reads the spell slot in state. If a spell is there, it reports ready with the spell's name. If the slot is still empty, it reports not ready and how long Gemini has been working. Either way it routes again, back to tick, without waiting.">
+      <defs><Arrow id="cs-a" color={line} /><Arrow id="cs-b" color={fast} /></defs>
+      <Box x={10} y={62} w={130} h={50} title="check_spell" note={'reads state["spell"]'} accent />
+      <line x1="140" y1="78" x2="196" y2="44" stroke={line} markerEnd="url(#cs-a)" />
+      <line x1="140" y1="96" x2="196" y2="130" stroke={line} markerEnd="url(#cs-a)" />
+      <text x={160} y={52} style={faint}>filled</text>
+      <text x={160} y={132} style={faint}>empty</text>
+      <Box x={198} y={18} w={220} h={50} title="report: ready" note="the spell's name" />
+      <Box x={198} y={106} w={220} h={50} title="report: not ready" note="seconds Gemini has been working" />
+      <line x1="418" y1="43" x2="470" y2="78" stroke={fast} markerEnd="url(#cs-b)" />
+      <line x1="418" y1="131" x2="470" y2="96" stroke={fast} markerEnd="url(#cs-b)" />
+      <Box x={472} y={62} w={92} h={50} title="again" note="always" accent />
+      <line x1="564" y1="87" x2="586" y2="87" stroke={fast} markerEnd="url(#cs-b)" />
+      <Box x={588} y={62} w={82} h={50} title="tick" note="next exchange" accent />
+      <text x={10} y={170} style={faint}>It never waits for Gemini. The page shows the report; tick casts once the slot is filled.</text>
+    </svg>
+  );
+}
+
+/* read_rune(): the spell card, exactly as the screen shows it, becomes
+   Gemini's user turn. */
+function ReadRuneNode() {
+  const line = "var(--hairline-strong)";
+  return (
+    <svg viewBox="0 0 680 128" role="img"
+         aria-label="read_rune takes the spell card on the arena's screen, grabs it as a PNG with rune_png, and wraps it with a line of text in a Content, which becomes the spellwright's user turn.">
+      <defs><Arrow id="rr-a" color={line} /></defs>
+      <rect x={14} y={22} width={120} height={70} rx="8" fill="var(--card)" stroke="#a86ef0" strokeWidth="3" />
+      <circle cx={44} cy={57} r={9} fill="var(--fg-muted)" />
+      <rect x={62} y={54} width={22} height={6} rx="2" fill="var(--fg-muted)" />
+      <polygon points="113,46 124,57 113,68 102,57" fill="var(--fg-muted)" />
+      <text x={74} y={110} textAnchor="middle" style={faint}>the spell card on screen</text>
+      <line x1="134" y1="57" x2="170" y2="57" stroke={line} markerEnd="url(#rr-a)" />
+      <Box x={172} y={32} w={130} h={50} title="rune_png()" note="exactly what is shown" />
+      <line x1="302" y1="57" x2="338" y2="57" stroke={line} markerEnd="url(#rr-a)" />
+      <rect x={340} y={22} width={176} height={70} rx="8" fill="color-mix(in srgb, var(--accent) 14%, transparent)" stroke="var(--accent)" />
+      <text x={352} y={42} style={strong}>Content (role "user")</text>
+      <text x={352} y={60} style={mono}>text: "Sing the spell…"</text>
+      <text x={352} y={76} style={mono}>image/png: the card</text>
+      <line x1="516" y1="57" x2="552" y2="57" stroke={line} markerEnd="url(#rr-a)" />
+      <Box x={554} y={32} w={112} h={50} title="spellwright" note="its user turn" dashed />
+      <text x={428} y={110} textAnchor="middle" style={faint}>also notes in state when reading began</text>
+    </svg>
+  );
+}
+
+/* spellwright: Gemini reads the image and answers in a fixed shape. */
+function SpellwrightNode() {
+  const line = "var(--hairline-strong)";
+  return (
+    <svg viewBox="0 0 680 150" role="img"
+         aria-label="The spellwright is an LlmAgent on gemini-flash-latest. Its instruction says the colour is the element and the three shapes are read left to right. Its output_schema is Sung: an element, three glyphs, and an incantation.">
+      <defs><Arrow id="sw-a" color={line} /></defs>
+      <Box x={10} y={50} w={110} h={50} title="the card" note="image/png" />
+      <line x1="120" y1="75" x2="156" y2="75" stroke={line} markerEnd="url(#sw-a)" />
+      <rect x={158} y={14} width={240} height={122} rx="10" fill="var(--card)" stroke={line} strokeDasharray="4 3" />
+      <text x={172} y={36} style={strong}>spellwright · LlmAgent</text>
+      <text x={172} y={52} style={faint}>gemini-flash-latest</text>
+      <text x={172} y={76} style={label}>colour of the border → element</text>
+      <text x={172} y={94} style={label}>three shapes, read left to right</text>
+      <text x={172} y={112} style={label}>a short incantation</text>
+      <line x1="398" y1="75" x2="434" y2="75" stroke={line} markerEnd="url(#sw-a)" />
+      <rect x={436} y={14} width={234} height={122} rx="10"
+            fill="color-mix(in srgb, var(--accent) 14%, transparent)" stroke="var(--accent)" />
+      <text x={450} y={36} style={strong}>Sung</text>
+      <text x={494} y={36} style={faint}>output_schema</text>
+      <text x={450} y={62} style={mono}>element: "storm"</text>
+      <text x={450} y={80} style={mono}>glyphs: circle, bar, diamond</text>
+      <text x={450} y={98} style={mono}>incantation: "Unleash the</text>
+      <text x={450} y={114} style={mono}>  tempest!"</text>
+    </svg>
+  );
+}
+
+/* spell_ready(): the arena, not Gemini, judges the spell; then store or retry. */
+function SpellReadyNode() {
+  const line = "var(--hairline-strong)";
+  return (
+    <svg viewBox="0 0 680 186" role="img"
+         aria-label="spell_ready hands the sung spell to the arena, which judges it against the spell card's hidden answer. If it does damage, the spell is stored in state and the branch routes stored to rest. A misread does no damage, burns the spell card, and routes retry to read_rune for the new card.">
+      <defs><Arrow id="sr-a" color={line} /></defs>
+      <Box x={10} y={64} w={96} h={50} title="Sung" note="from Gemini" />
+      <line x1="106" y1="89" x2="140" y2="89" stroke={line} markerEnd="url(#sr-a)" />
+      <Box x={142} y={64} w={190} h={50} title="arena.sung()" note="judged against the hidden answer" />
+      <line x1="332" y1="80" x2="380" y2="46" stroke="var(--accent)" markerEnd="url(#sr-a)" />
+      <line x1="332" y1="98" x2="380" y2="132" stroke={line} markerEnd="url(#sr-a)" />
+      <text x={334} y={56} style={faint}>damage</text>
+      <text x={334} y={130} style={faint}>misread</text>
+      <Box x={382} y={16} w={172} h={50} title={'state["spell"] = spell'} note="the slot is filled" accent />
+      <line x1="554" y1="41" x2="584" y2="41" stroke={line} markerEnd="url(#sr-a)" />
+      <Box x={586} y={16} w={84} h={50} title="stored" note="→ rest" />
+      <Box x={382} y={112} w={172} h={50} title="the card is burned" note="no damage, a new card" />
+      <line x1="554" y1="137" x2="584" y2="137" stroke={line} markerEnd="url(#sr-a)" />
+      <Box x={586} y={112} w={84} h={50} title="retry" note="→ read_rune" />
+      <text x={10} y={180} style={faint}>perfect reading 45 damage · two shapes right 25 · misread 0</text>
+    </svg>
+  );
+}
+
+/* The arena workflow exactly as `edges=[...]` defines it: every node, every
+   routed edge with its route name. */
+function GraphDefinition() {
+  const fast = "var(--accent)";
+  const line = "var(--hairline-strong)";
+  const route = (x: number, y: number, word: string, color = "var(--fg-faint)") => (
+    <text x={x} y={y} textAnchor="middle" style={{ ...mono, fontSize: 10, fill: color }}>{word}</text>
+  );
+  return (
+    <svg viewBox="0 0 680 340" role="img"
+         aria-label="The arena workflow graph. START goes to enter, which fans out to read_rune and tick. Slow branch: read_rune, spellwright, spell_ready; spell_ready routes retry back to read_rune, or stored to rest. Fast loop: tick routes next to check_spell, which routes again back to tick; tick routes recast to read_rune, and done to summarise, then bard, then finish.">
+      <defs><Arrow id="gd-a" color={line} /><Arrow id="gd-b" color={fast} /></defs>
+
+      <Box x={8} y={152} w={60} h={36} title="START" />
+      <line x1="68" y1="170" x2="90" y2="170" stroke={line} markerEnd="url(#gd-a)" />
+      <Box x={92} y={148} w={76} h={44} title="enter" note="the bell" />
+
+      {/* fan-out */}
+      <line x1="168" y1="160" x2="206" y2="72" stroke={line} markerEnd="url(#gd-a)" />
+      <line x1="168" y1="180" x2="206" y2="232" stroke={fast} markerEnd="url(#gd-b)" />
+      <text x={150} y={118} style={faint}>fan-out</text>
+      <text x={14} y={70} style={faint}>slow branch</text>
+      <text x={14} y={84} style={faint}>Gemini, seconds</text>
+      <text x={14} y={262} style={{ ...faint, fill: fast }}>fast loop</text>
+      <text x={14} y={276} style={{ ...faint, fill: fast }}>every tick</text>
+
+      {/* slow branch */}
+      <Box x={208} y={48} w={100} h={44} title="read_rune" note="spell card as PNG" />
+      <line x1="308" y1="70" x2="326" y2="70" stroke={line} markerEnd="url(#gd-a)" />
+      <Box x={328} y={48} w={100} h={44} title="spellwright" note="Gemini sings" dashed />
+      <line x1="428" y1="70" x2="446" y2="70" stroke={line} markerEnd="url(#gd-a)" />
+      <Box x={448} y={48} w={100} h={44} title="spell_ready" note="the arena judges" />
+      <line x1="548" y1="70" x2="592" y2="70" stroke={line} markerEnd="url(#gd-a)" />
+      {route(570, 60, "stored")}
+      <Box x={594} y={48} w={80} h={44} title="rest" note="branch ends" />
+      <path d="M498 48 C 498 14, 258 14, 258 46" fill="none" stroke={line} markerEnd="url(#gd-a)" />
+      {route(378, 22, "retry")}
+
+      {/* fast loop */}
+      <Box x={208} y={214} w={124} h={44} title="tick" note="Discriminative model" accent />
+      <line x1="332" y1="236" x2="360" y2="236" stroke={fast} markerEnd="url(#gd-b)" />
+      {route(346, 228, "next", fast)}
+      <Box x={362} y={214} w={104} h={44} title="check_spell" note="spell ready?" accent />
+      <path d="M414 214 C 414 182, 280 182, 280 212" fill="none" stroke={fast} markerEnd="url(#gd-b)" />
+      {route(347, 180, "again", fast)}
+      <path d="M232 214 C 232 170, 232 130, 232 94" fill="none" stroke={fast} markerEnd="url(#gd-b)" />
+      {route(206, 156, "recast", fast)}
+
+      {/* the end of the match */}
+      <path d="M258 258 C 258 300, 300 304, 326 304" fill="none" stroke={fast} markerEnd="url(#gd-b)" />
+      {route(282, 296, "done", fast)}
+      <Box x={328} y={284} w={104} h={40} title="summarise" note="the match log" />
+      <line x1="432" y1="304" x2="456" y2="304" stroke={line} markerEnd="url(#gd-a)" />
+      <Box x={458} y={284} w={90} h={40} title="bard" note="Gemini tells it" dashed />
+      <line x1="548" y1="304" x2="572" y2="304" stroke={line} markerEnd="url(#gd-a)" />
+      <Box x={574} y={284} w={84} h={40} title="finish" />
+    </svg>
+  );
+}
+
 /* ── step 6 ─────────────────────────────────────────────────────────────── */
 
 function ThreeTools() {
@@ -1248,6 +1454,12 @@ const FIGURES: Record<string, () => ReactNode> = {
   "arena-flow": ArenaFlow,
   "cost-shape": CostShape,
   "arena-graph": ArenaGraph,
+  "graph-definition": GraphDefinition,
+  "tick-node": TickNode,
+  "check-spell-node": CheckSpellNode,
+  "read-rune-node": ReadRuneNode,
+  "spellwright-node": SpellwrightNode,
+  "spell-ready-node": SpellReadyNode,
   "three-tools": ThreeTools,
 };
 
