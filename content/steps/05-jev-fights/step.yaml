@@ -1,0 +1,187 @@
+slug: jev-fights
+title: Automate decisions with the model
+kicker: Step 5
+part: demo
+minutes: 9
+color: amber
+summary: Run the arena with the model choosing each response, and review its probabilities.
+
+parts:
+  - id: a
+    label: First request
+    headline: Send a request and read the response
+    body: a-first-call.md
+    exercise:
+      title: Make a request
+      intro: >
+        Read the script, fill in the request, then run it and read what comes
+        back.
+      tasks:
+        - kind: files
+          id: read
+          title: Review the request
+          start: scripts
+          open: scripts/first_call.py
+          only:
+            - scripts/first_call.py
+          explain: >
+            Near the top are `TELEGRAPH`, what the ogre just did, `RESPONSES`,
+            the five responses, and `REQUEST`, what the script sends. Two
+            parts are missing, each marked `TODO`. You fill them in next. The
+            rest of the script builds the SDK's questions from `REQUEST` and
+            prints the answers.
+        - kind: edit
+          id: fill-request
+          title: Fill in the request
+          file: scripts/first_call.py
+          symbols: [TELEGRAPH, REQUEST]
+          explain: >
+            Replace both `TODO`s below. First, set `TELEGRAPH` to what the
+            ogre just did, in your own words, for example that it staggers off
+            balance with its guard open. Then, in `REQUEST`'s `questions`, add
+            `"response"`: a choice question with three keys, `"type"`,
+            `"instructions"` and `"criteria"`. Its criteria are `RESPONSES`.
+            Save when you are done.
+          hints:
+            - >
+              `TELEGRAPH` is a string. Describe one move, such as
+              `"The ogre staggers, off balance, its guard wide open."`.
+              `REQUEST` already sends it as the telegraph.
+            - >
+              A choice question has the same shape as `"exposed"`, with
+              `"type": "choice"` and one more key, `"criteria"`. Use the
+              variable without quotes: `"criteria": RESPONSES`.
+          answer: |
+            TELEGRAPH = "The ogre staggers, off balance, its guard wide open."
+
+            # The five responses, and when each one is right. A choice question's criteria.
+            RESPONSES = {
+                "block_high": "Raise the shield against a high swing.",
+                "block_low": "Drop the shield against a swing at the legs.",
+                "dodge": "Step aside from a charge or a thrown object.",
+                "strike": "Attack now, while the opponent is exposed.",
+                "wait": "Hold and watch, against a feint.",
+            }
+
+            # The request, as JSON. This is the whole API: some state, some questions.
+            REQUEST = {
+                "state": {
+                    "opponent": "a nine-foot ogre with a spiked club, thick hide, and a short temper",
+                    "telegraph": TELEGRAPH,
+                },
+                "model": "jev-latest",
+                "questions": {
+                    "response": {
+                        "type": "choice",
+                        "instructions": "The opponent has just done this. What is the right response?",
+                        "criteria": RESPONSES,
+                    },
+                    "exposed": {
+                        "type": "noul",
+                        "instructions": "Is the opponent exposed to a counter-attack right now?",
+                    },
+                },
+            }
+        - kind: terminal
+          id: run
+          title: Run the request
+          expect:
+            - python3 scripts/first_call.py
+          explain: >
+            Run `python3 scripts/first_call.py`. It prints the request it
+            sent, the response as it came back, then one line per answer, such
+            as `response → strike` and `exposed → 0.97`. Change `TELEGRAPH`,
+            save, and run it again to see the answers move.
+    checks:
+      - id: first-call
+        label: The request has a telegraph and a response question, and the model answered
+        probe: python3 scripts/first_call.py
+        assert: contains
+        value: "response →"
+        hint: >
+          No `response →` line means a TODO is still open: fill in
+          `TELEGRAPH` and the response question above, and save. If the call fails, the
+          script prints the error. A 401 means the Jev key is wrong. A connection error means the model is not answering:
+          click the model light at the top right to check it.
+
+  - id: b
+    label: Arena integration
+    headline: Apply the model to the arena game
+    body: b-the-app.md
+    exercise:
+      title: Review the code and run the model
+      intro: >
+        See what this step adds to the app from step 3, then watch the model
+        fight.
+      tasks:
+        - kind: files
+          id: look
+          title: Review the rules and questions
+          start: app
+          open: app/reflex.py
+          stage: 5
+          compare: 3
+          highlight: "typesafe_sdk|TypeSafe(Client|APIError|Error)|\\b(Choice|Noul|Score)\\(|system_one\\("
+          highlightLabel: Highlighted lines use the TypeSafe SDK.
+          explain: >
+            If the bar above the files says the game is in manual mode, press
+            "Update game to Discriminative model mode" first. The files marked
+            NEW are what this step adds to the manual version; nothing from
+            step 3 changes. `reflex.py` holds the questions and `choose()`,
+            `mode_model.py` asks the model on every tick, and
+            `static/modes/model.js` draws the answer cards on the page.
+        - kind: app
+          id: watch
+          title: Arena app
+          appTitle: Arena
+          appMode: model
+          explain: >
+            The arena opens in "Discriminative model fights". Press Start. The
+            cards under the ring show what the Discriminative model answered on
+            each tick.
+        - kind: reflect
+          id: still-a-draw
+          title: Analyze the result
+          prompt: >
+            The Discriminative model did not lose a hit point. The ogre still walked away.
+    checks:
+      - id: app-answers
+        label: Arena app is running
+        probe: curl -s -o /dev/null -w %{http_code} http://127.0.0.1:$APP_PORT/api/health
+        assert: contains
+        value: "200"
+        hint: Press Start in the Arena panel above. If there is no Discriminative model fight, update the game in the file explorer first.
+      - id: model-mode
+        label: The app has the Discriminative model fight
+        probe: curl -s http://127.0.0.1:$APP_PORT/api/health
+        assert: contains
+        value: '"id": "model"'
+        hint: Press "Update game to Discriminative model mode" in the file explorer above.
+
+  - id: c
+    label: Performance
+    headline: Latency and cost
+    body: c-numbers.md
+    exercise:
+      title: Run a match from the terminal
+      intro: >
+        The app shows one tick at a time. This runs a fight to the end, one
+        line per tick, and prints what it took.
+      tasks:
+        - kind: terminal
+          id: batch
+          title: Run the terminal version
+          expect:
+            - python3 scripts/fight.py
+            - python3 scripts/fight.py --seed 7
+          explain: >
+            One line per tick, then the totals. `--seed` makes the ogre repeat
+            itself, so two runs can be compared. The script imports the rules
+            and the questions from the app, so there is one copy to review.
+        - kind: reflect
+          id: the-rule
+          title: Review the fallback rule
+          prompt: >
+            Find a tick where the Discriminative model's confidence was low. What did the code do,
+            and was it right? Now imagine the rule were "if in doubt, strike".
+            Which telegraphs would that have gone wrong on?

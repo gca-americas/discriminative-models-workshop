@@ -1,0 +1,136 @@
+slug: the-workflow
+title: Combine models in an ADK workflow
+kicker: Step 6
+part: build
+minutes: 15
+color: emerald
+summary: Build an ADK graph workflow that calls the discriminative model every tick and Gemini on a parallel branch.
+
+parts:
+  - id: a
+    label: Design
+    headline: Workflow design
+    body: a-the-shape.md
+
+  - id: b
+    label: Implementation
+    headline: Fan-out, loop, and shared state
+    body: b-the-code.md
+    exercise:
+      title: Review the workflow
+      intro: >
+        The whole arena is one file. The nodes are in the middle, and the
+        graph is five lines at the bottom.
+      tasks:
+        - kind: terminal
+          id: stage
+          title: Add the workflow fight to the app
+          expect:
+            - python3 scripts/stage.py 6
+          explain: >
+            This lays the step 6 files on top of step 5 and starts the app again:
+            `mode_workflow.py`, which starts the ADK workflow and receives its
+            moves and spells, and `static/modes/workflow.js`, which draws them.
+            The workflow itself is `agents/arena/agent.py`, below.
+        - kind: files
+          id: read
+          title: Review agents/arena/agent.py
+          start: agents
+          open: agents/arena/agent.py
+          stage: 6
+          explain: >
+            Start at `tick()`, the Discriminative model loop. Then `read_rune()`, `spellwright`
+            and `spell_ready()`: the Gemini branch that reads an image, sings,
+            is judged, and writes into state without producing output. Then
+            the `Workflow(...)` at the bottom: one fan-out, one back edge, one
+            route that starts the branch again.
+        - kind: inspector
+          id: adk-web
+          title: Inspect the workflow in ADK web
+          appTitle: ADK web
+          explain: |
+            ADK web is ADK's development UI, mounted in this workbench. It loads agents/arena/agent.py, the same workflow the terminal runs, and shows every node, event and state change.
+            1. Select Open ADK web. The arena app is already selected.
+            2. Select the graph icon in the toolbar. The graph shows enter fanning out to tick and read_rune, tick looping through check_spell, and the Gemini branch ending at rest. Close the graph.
+            3. In the message box, send any message, such as "Start the match". The run takes about 45 seconds.
+            4. When it finishes, select the menu button to open the side panel, then select an event. The panel shows the run as a graph, with how many times each node and route ran. The State tab shows values such as spell, tick, you and foe. For the full layout, select Open in a new tab.
+
+  - id: c
+    label: Run
+    headline: Run the workflow
+    body: c-run-it.md
+    exercise:
+      title: Start the workflow
+      intro: >
+        Switch the arena to "Workflow fights" and press Start. That launches
+        the ADK workflow: the Discriminative model starts fighting at once, and Gemini starts
+        reading the spell card alongside. Then run it from the terminal too, to see
+        the same fight as a timeline.
+      tasks:
+        - kind: terminal
+          id: check
+          title: Verify Gemini access
+          expect:
+            - python3 scripts/check_setup.py
+          explain: >
+            The `gemini` line must not say "not set up yet". If it does, add
+            `GOOGLE_API_KEY=...` to `.env`, or the Vertex AI variables, and run
+            it again.
+        - kind: app
+          id: watch
+          title: Arena app
+          appTitle: Arena
+          explain: >
+            Select "Workflow fights" and press Start. The fight begins
+            straight away. Watch the badge at the top of the stage: every
+            tick, the fighter checks the spell slot and says "not ready" until
+            Gemini's song lands. Restart runs a fresh fight.
+        - kind: intent
+          id: fight
+          title: Start the workflow from the terminal
+          prompt: >
+            Say that you want the fight to begin, in your own words. It runs
+            the same workflow and prints its timeline here, while the arena
+            above draws it.
+          example: Start the workflow and run a match
+          expect:
+            goal: Run the arena workflow once.
+            requires:
+              - [fight, bell, arena, ogre, round, battle, go, start, run, begin, workflow, match]
+            rejects:
+              - [delete, remove]
+            feedback:
+              missing_0: Say what you want to happen, like "start the fight".
+              accepted: Starting the workflow. The Discriminative model handles each tick; Gemini reads the spell card.
+          command: python3 scripts/arena.py
+        - kind: terminal
+          id: again
+          title: Modify and rerun
+          expect:
+            - python3 scripts/arena.py --seed 7
+            - python3 scripts/arena.py --fast
+          explain: >
+            `--seed` repeats the same ogre; Gemini's songs will still differ.
+            `--fast` removes the pause between ticks: the fight is over in
+            eight seconds and the first spell arrives after the last blow.
+    checks:
+      - id: workflow-mode
+        label: The app has the workflow fight
+        probe: curl -s http://127.0.0.1:$APP_PORT/api/health
+        assert: contains
+        value: '"id": "workflow"'
+        hint: Run python3 scripts/stage.py 6 in the terminal in part b.
+      - id: gemini-ready
+        label: Gemini credentials are configured
+        probe: python3 scripts/check_setup.py
+        assert: not_contains
+        value: "gemini          not set up"
+        hint: >
+          Add GOOGLE_API_KEY=... to .env, or GOOGLE_GENAI_USE_VERTEXAI=1 and
+          GOOGLE_CLOUD_PROJECT=... with gcloud signed in.
+      - id: arena-runs
+        label: Workflow completed a match
+        probe: python3 scripts/arena.py --fast
+        assert: contains
+        value: "spells cast"
+        hint: The fight needs both the Discriminative model and Gemini. Run it in the terminal to see which one failed.

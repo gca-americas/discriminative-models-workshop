@@ -1,0 +1,31 @@
+title: "Getting started with Discriminative (Jev/DiffusionGemma) models"
+subtitle: "Discriminative models, Gemini, and ADK workflows"
+tagline: A one-hour introduction to System One models, with Gemini and ADK
+credit: Brought to you by Google Cloud Americas' Advocacy team
+
+# The one idea the hour is built to leave behind. Named in step 3, proved in
+# step 5, and referred to by name in between.
+thesis: >
+  A language model writes. A decision model decides. Most of what software
+  needs from AI is a decision, and a decision comes back as a number your code
+  can read.
+
+parts:
+  - id: intro
+    title: Introduction
+    color: fuchsia
+  - id: run
+    title: Setup
+    color: violet
+  - id: understand
+    title: Concepts
+    color: sky
+  - id: demo
+    title: Demo
+    color: amber
+  - id: build
+    title: Build
+    color: emerald
+  - id: takeaway
+    title: Summary
+    color: rose

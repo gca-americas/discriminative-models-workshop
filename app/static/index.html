@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Arena</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Bangers&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="brand">THE ARENA <span class="brand-sub">round 1 · the ogre</span></div>
+      <div id="modes" class="modes"></div>
+      <div class="bar-right">
+        <div id="setup" class="pill" hidden></div>
+        <button id="sound" class="pill sound" type="button">SOUND ON</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- ── the cabinet ─────────────────────────────────────────── -->
+      <section class="cabinet">
+        <div class="hud">
+          <div class="hp-side left">
+            <div class="hp-name">YOU</div>
+            <div class="hpbar"><div id="hp-you-trail" class="hp-trail"></div><div id="hp-you" class="hp-fill"></div></div>
+            <div id="hp-you-text" class="hp-num">100</div>
+          </div>
+          <div class="hp-mid">
+            <div id="round-timer" class="round-timer">60</div>
+            <div class="round-label">TICKS LEFT</div>
+          </div>
+          <div class="hp-side right">
+            <div class="hp-name">THE OGRE</div>
+            <div class="hpbar"><div id="hp-foe-trail" class="hp-trail"></div><div id="hp-foe" class="hp-fill"></div></div>
+            <div id="hp-foe-text" class="hp-num">300</div>
+          </div>
+        </div>
+
+        <div id="stage" class="stage">
+          <div class="sky"></div>
+          <div class="crowd"></div>
+          <div class="floor"></div>
+
+          <div id="hero" class="fighter hero idle">
+            <svg viewBox="0 0 120 160" class="sprite" aria-label="you">
+              <g class="shadow"><ellipse cx="60" cy="152" rx="34" ry="6" fill="rgba(0,0,0,.45)" /></g>
+              <g class="body">
+                <rect x="44" y="62" width="32" height="44" rx="6" fill="#2f6fed" />
+                <rect x="44" y="62" width="32" height="12" fill="#1c4fb8" />
+                <rect x="47" y="104" width="10" height="34" rx="3" fill="#33395a" />
+                <rect x="63" y="104" width="10" height="34" rx="3" fill="#33395a" />
+                <rect x="44" y="134" width="15" height="8" rx="2" fill="#141826" />
+                <rect x="61" y="134" width="15" height="8" rx="2" fill="#141826" />
+                <circle cx="60" cy="44" r="18" fill="#f2c9a2" />
+                <path d="M40 40 Q60 12 80 40 L80 46 L40 46 Z" fill="#c9c9d6" />
+                <rect x="40" y="44" width="40" height="6" fill="#8f93a8" />
+                <circle cx="54" cy="47" r="2.2" fill="#1a1a1a" /><circle cx="66" cy="47" r="2.2" fill="#1a1a1a" />
+                <path d="M54 56 Q60 60 66 56" stroke="#8a4b3a" stroke-width="2" fill="none" />
+              </g>
+              <g class="arm-sword">
+                <rect x="76" y="70" width="10" height="26" rx="4" fill="#f2c9a2" />
+                <rect x="79" y="30" width="6" height="46" rx="2" fill="#dfe6f5" />
+                <rect x="72" y="72" width="20" height="5" rx="2" fill="#b98a2f" />
+              </g>
+              <g class="arm-shield">
+                <rect x="34" y="70" width="10" height="24" rx="4" fill="#f2c9a2" />
+                <path d="M14 60 L44 60 L44 96 Q29 112 14 96 Z" fill="#c8302f" stroke="#ffd166" stroke-width="3" />
+                <path d="M29 68 L29 100" stroke="#ffd166" stroke-width="3" />
+              </g>
+              <g class="cast-glow"><circle cx="60" cy="80" r="52" fill="url(#glow)" /></g>
+              <defs>
+                <radialGradient id="glow"><stop offset="0" stop-color="#a78bfa" stop-opacity=".8" /><stop offset="1" stop-color="#a78bfa" stop-opacity="0" /></radialGradient>
+              </defs>
+            </svg>
+          </div>
+
+          <div id="ogre" class="fighter ogre idle">
+            <svg viewBox="0 0 200 200" class="sprite" aria-label="the ogre">
+              <g class="shadow"><ellipse cx="100" cy="192" rx="58" ry="8" fill="rgba(0,0,0,.45)" /></g>
+              <g class="club">
+                <rect x="20" y="30" width="16" height="110" rx="6" fill="#6b4a2b" transform="rotate(-25 28 140)" />
+                <circle cx="24" cy="36" r="18" fill="#4e3620" transform="rotate(-25 28 140)" />
+                <circle cx="14" cy="26" r="3" fill="#cfcfcf" /><circle cx="36" cy="22" r="3" fill="#cfcfcf" /><circle cx="8" cy="42" r="3" fill="#cfcfcf" />
+              </g>
+              <g class="body">
+                <rect x="60" y="60" width="86" height="80" rx="18" fill="#5a9a44" />
+                <rect x="60" y="60" width="86" height="20" fill="#4a8236" />
+                <rect x="66" y="132" width="26" height="46" rx="8" fill="#3e6b2f" />
+                <rect x="114" y="132" width="26" height="46" rx="8" fill="#3e6b2f" />
+                <rect x="60" y="172" width="34" height="12" rx="4" fill="#26361f" />
+                <rect x="112" y="172" width="34" height="12" rx="4" fill="#26361f" />
+                <rect x="70" y="112" width="66" height="22" rx="4" fill="#8a6d3b" />
+                <circle cx="103" cy="42" r="30" fill="#67aa4f" />
+                <circle cx="92" cy="38" r="5" fill="#fff" /><circle cx="114" cy="38" r="5" fill="#fff" />
+                <circle cx="93" cy="39" r="2.5" fill="#1a1a1a" /><circle cx="115" cy="39" r="2.5" fill="#1a1a1a" />
+                <path d="M84 30 L96 34 M122 30 L110 34" stroke="#2f4f24" stroke-width="4" />
+                <path d="M88 56 Q103 64 118 56" stroke="#2a3d20" stroke-width="4" fill="none" />
+                <path d="M92 56 L92 50 L97 56 M114 56 L114 50 L109 56" fill="#fff" />
+                <rect x="146" y="70" width="22" height="46" rx="10" fill="#5a9a44" />
+                <rect x="38" y="70" width="22" height="46" rx="10" fill="#5a9a44" />
+              </g>
+            </svg>
+          </div>
+
+          <div id="spell-corner" class="spell-corner empty" title="the spell slot">
+            <div id="rune-frame" class="rune-frame"><img id="rune" src="api/sigil.png" alt="the current spell card" /></div>
+            <div id="spell-tag" class="spell-tag"></div>
+          </div>
+          <div id="fx" class="fx"></div>
+          <div id="splash" class="splash" hidden></div>
+          <div id="caption" class="caption">PICK A MODE, THEN PRESS START</div>
+          <div id="timer" class="timer"><div id="timer-fill" class="timer-fill"></div></div>
+        </div>
+
+        <div id="buttons" class="buttons">
+          <button class="act" data-action="block_high"><kbd>1</kbd>BLOCK HIGH</button>
+          <button class="act" data-action="block_low"><kbd>2</kbd>BLOCK LOW</button>
+          <button class="act" data-action="dodge"><kbd>3</kbd>DODGE</button>
+          <button class="act" data-action="strike"><kbd>4</kbd>STRIKE</button>
+          <button class="act" data-action="wait"><kbd>5</kbd>WAIT</button>
+        </div>
+        <!-- the spell builder: pick the card's color, then its shapes in order, then CAST -->
+        <div id="spellcast-row" class="spellbook" hidden>
+          <div class="spell-line-up">
+            <span class="spell-label">SPELL</span>
+            <div id="spell-slots" class="spell-slots"></div>
+            <button id="spell-clear" class="spell-small" type="button">CLEAR</button>
+            <button id="spell-cast" class="spell-cast" type="button" disabled>CAST</button>
+          </div>
+          <div id="spell-colors" class="spell-colors"></div>
+          <div id="spell-shapes" class="spell-shapes"></div>
+        </div>
+
+        <div class="row">
+          <button id="start" class="primary">INSERT COIN · START</button>
+          <button id="pause" class="secondary" hidden>Pause</button>
+          <span id="status" class="status"></span>
+        </div>
+        <div id="outcome" class="outcome"></div>
+
+      </section>
+
+      <!-- ── the readout ───────────────────────────────────────── -->
+      <section class="readout">
+        <details id="rules" class="panel rules">
+          <summary>MOVE LIST · the rules, for whoever is fighting</summary>
+          <table id="rules-table"></table>
+        </details>
+
+        <!-- plugin modes add their panels here (modes/*.js) -->
+        <div id="mode-panels"></div>
+
+        <details class="logbox">
+          <summary>SPELLS <span id="castings-count"></span></summary>
+          <div id="spell-status" class="spell-line">EMPTY · only a sung spell can hurt this ogre</div>
+          <div id="spell-song" class="spell-song"></div>
+          <div id="castings" class="castings"></div>
+        </details>
+        <details class="logbox">
+          <summary>FIGHT LOG <span id="log-count"></span></summary>
+          <ol id="log" class="log"></ol>
+        </details>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

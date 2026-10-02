@@ -1,0 +1,75 @@
+slug: by-hand
+title: Play the game manually
+kicker: Step 3
+part: understand
+minutes: 6
+color: sky
+summary: Play the arena game without a model to learn its rules and time limit.
+
+parts:
+  - id: a
+    label: Manual play
+    headline: Respond to each move manually
+    body: a-fight.md
+    exercise:
+      title: Start the app and play
+      intro: >
+        Look at the code first. Then start the arena the way you would on any
+        machine, by typing the command, read the rules in the app's move list,
+        and press Start.
+      figure:
+        id: app-structure
+        caption: The arena app in step 3. The page talks to one small server; the rules and the spell cards are two files it uses. Steps 5 and 6 add new modes as plugin files.
+      tasks:
+        - kind: files
+          id: code
+          title: Review the app's code
+          start: app
+          open: app/main.py
+          stage: 3
+          explain: >
+            This is the whole game as it stands in step 3: `main.py` is the
+            server and the "You fight" mode, `engine.py` holds the rules and
+            the ogre's moves, `sigil.py` draws and judges the spell cards, and
+            `static/` is the page. There is no model in it yet. Steps 5 and 6
+            add the Discriminative model fight and the workflow fight as new
+            files on top of these, one step at a time.
+        - kind: terminal
+          id: start
+          title: Start the arena app
+          expect:
+            - cd app
+            - python3 main.py
+          explain: >
+            Move into the app folder and run it. Two commands: `cd app`, then
+            `python3 main.py`. `ls` and `cat` work too if you want to look
+            around first.
+        - kind: app
+          id: fight
+          title: Arena app
+          appTitle: Arena
+          explain: >
+            Make sure "You fight" is selected at the top. Press Start. Each
+            time the ogre telegraphs a move you have two seconds to press the
+            right button (keys 1 to 5 work too). The rules are in the move
+            list. To cast, pick the spell card's color and its shapes in order under the fight, then press CAST.
+            Fight until it ends.
+        - kind: reflect
+          id: how-was-it
+          title: Reflect on manual play
+          prompt: >
+            Think about what was actually hard. First, you need to make
+            decisions quickly and act fast. You also have to think through the
+            spell combination at the same time: a split brain. So when we build
+            an agent to help defeat the ogre, it needs to do both.
+    after:
+      action: stop-app
+      label: Stop the server
+      note: Done with the arena for now? Stop it here. Step 5 starts it again with a new mode.
+    checks:
+      - id: app-answers
+        label: Arena app is running
+        probe: curl -s -o /dev/null -w %{http_code} http://127.0.0.1:$APP_PORT/api/health
+        assert: contains
+        value: "200"
+        hint: Start the app from the terminal above.

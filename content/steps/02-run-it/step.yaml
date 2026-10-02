@@ -1,0 +1,34 @@
+slug: run-it
+title: Set up the model
+kicker: Step 2
+part: run
+minutes: 8
+color: violet
+summary: Choose the model the workshop uses and configure access to it.
+
+parts:
+  - id: a
+    label: Setup
+    headline: Configure access
+    body: a-setup.md
+    exercise:
+      title: Prepare your environment
+      intro: >
+        Choose the model the workshop uses. The setup checks your choice before
+        it keeps it, and offers the others if it does not work.
+      tasks:
+        - kind: model-setup
+          id: model
+          title: Choose the decision model
+          explain: >
+            Jev needs a TypeSafe API key. DiffusionGemma needs a Google Cloud
+            project with billing and GPU quota. If neither works here, the
+            workshop uses rehearsal mode.
+    checks:
+      - id: jev-ready
+        label: Model endpoint is reachable
+        probe: python3 scripts/check_setup.py
+        assert: contains
+        value: "model: ready"
+        hint: >
+          Choose the decision model above and press Set up.

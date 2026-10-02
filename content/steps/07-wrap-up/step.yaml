@@ -1,0 +1,22 @@
+slug: wrap-up
+title: Summary and next steps
+kicker: Step 7
+part: takeaway
+minutes: 3
+color: rose
+summary: When to use a discriminative model, its limitations and cost, and further resources.
+headline: Choose between code, a discriminative model, and a language model
+exercise:
+  title: Identify a use case
+  intro: >
+    The best first use of the Discriminative model is a decision your software already makes badly
+    or does not make at all.
+  tasks:
+    - kind: reflect
+      id: one-decision
+      title: Identify a decision in your own system
+      prompt: >
+        Somewhere in a system you work on, a piece of code, a person, or a
+        language model is deciding something bounded: a category, a yes/no, a
+        severity, a next move. Name it. Then write the question you would ask
+        the Discriminative model, in one sentence, and the threshold you would start with.

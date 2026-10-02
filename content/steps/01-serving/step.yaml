@@ -1,0 +1,8 @@
+slug: serving
+title: Model serving architecture
+kicker: Step 1
+part: run
+minutes: 6
+color: violet
+summary: How the workshop calls Jev or DiffusionGemma, and how DiffusionGemma is deployed on a Compute Engine GPU VM.
+headline: Access options and deployment

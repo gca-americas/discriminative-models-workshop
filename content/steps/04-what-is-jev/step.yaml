@@ -1,0 +1,48 @@
+slug: what-is-jev
+title: Discriminative model concepts
+kicker: Step 4
+part: understand
+minutes: 9
+color: sky
+summary: How a discriminative model returns probabilities instead of text, and how code acts on them.
+
+parts:
+  - id: a
+    label: Overview
+    headline: Discriminative models and question types
+    body: a-two-systems.md
+    exercise:
+      title: Identify question types
+      intro: >
+        You will have to decide how the Discriminative model answers your question.
+      tasks:
+        - kind: widget
+          id: pick
+          title: Match each question to its type
+          widget: primitive-picker
+          explain: >
+            Using our Arena game as an example, these are questions a fighter
+            might ask about what the ogre is about to do. Tap the primitive that
+            fits each one.
+
+  - id: b
+    label: Probability and confidence
+    headline: Probabilities, confidence, and thresholds
+    body: b-confidence.md
+    exercise:
+      title: Decide when to act on a probability
+      intro: >
+        For each move, the model gives the chance that the ogre is open to
+        attack. You choose the number where the fighter strikes. A low number
+        strikes often and gets hit more. A high number is safer, but the fighter
+        sometimes waits when it could have struck.
+      tasks:
+        - kind: widget
+          id: threshold
+          title: Set when to strike
+          widget: threshold
+          explain: >
+            Each row is something the ogre did, with the model's chance that it
+            left an opening. The fighter strikes on every row at or above your
+            number. Move the slider until you take as many openings as you can
+            without getting hit once.
