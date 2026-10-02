@@ -10,3 +10,10 @@ __pycache__/
 .env.tmp
 .env.bak
 *.tsbuildinfo
+
+# app/ ships at stage 3 (manual mode). Later stages add these files when the
+# game is updated from a step (scripts/stage.py); they live in stages/.
+app/mode_model.py
+app/reflex.py
+app/mode_workflow.py
+app/static/modes/
