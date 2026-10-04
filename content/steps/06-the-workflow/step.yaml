@@ -271,10 +271,7 @@ parts:
       probe: python3 scripts/check_setup.py
       assert: not_contains
       value: gemini          not set up
-      hint: 'Add GOOGLE_API_KEY=... to .env, or GOOGLE_GENAI_USE_VERTEXAI=1 and GOOGLE_CLOUD_PROJECT=...
-        with gcloud signed in.
-
-        '
+      hint: Run ./setup_codelab.sh again. It points Gemini at Vertex AI in your project.
     - id: arena-runs
       label: Workflow completed a match
       probe: python3 scripts/arena.py --fast
@@ -292,8 +289,7 @@ parts:
           expect:
           - cat .env
           explain: Run `cat .env`. This is the file at the root of the workshop where
-            setup saved your settings. For Gemini, look for `GOOGLE_GENAI_USE_VERTEXAI`,
-            `GOOGLE_CLOUD_PROJECT` and `JEV101_GEMINI_MODEL`, or for `GOOGLE_API_KEY`.
-            If none of them is there, add `GOOGLE_API_KEY=...`, or the Vertex AI variables,
-            and print it again. The file holds your keys too, so keep it off shared
-            screens.
+            setup saved your settings. For Gemini, look for `GOOGLE_GENAI_USE_VERTEXAI=1`,
+            `GOOGLE_CLOUD_PROJECT` and `JEV101_GEMINI_MODEL`. If they are missing,
+            run `./setup_codelab.sh` again and print it again. The file holds your
+            keys too, so keep it off shared screens.

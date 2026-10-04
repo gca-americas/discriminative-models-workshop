@@ -33,10 +33,11 @@ graph and the events in a browser rather than a terminal.
 :::
 
 :::section kicker="Prerequisites" headline="Gemini access"
-The workflow puts the Discriminative model and Gemini together, so Gemini needs credentials too:
-either `GOOGLE_API_KEY` from AI Studio, or Vertex AI through `gcloud` with
-`GOOGLE_GENAI_USE_VERTEXAI=1` and `GOOGLE_CLOUD_PROJECT`. The setup check
-reports both.
+The workflow puts the Discriminative model and Gemini together, so Gemini needs access too.
+It runs on Vertex AI in your project, with your own Google credentials and no
+API key. `./setup_codelab.sh` set this up: `GOOGLE_GENAI_USE_VERTEXAI=1`,
+`GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` in `.env`, and the Gemini
+model your project can call in `JEV101_GEMINI_MODEL`.
 
 :::exercise id="gemini" plain="true"
 :::

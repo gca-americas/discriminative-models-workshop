@@ -23,17 +23,33 @@ classification, gating, and here, a fighter's reflexes.
 
 ## Setup
 
+In Cloud Shell, or anywhere `gcloud` is signed in:
+
 ```bash
-scripts/setup.sh
+./setup_project.sh     # a new project with billing, recorded in ~/project_id.txt
+./setup_codelab.sh     # everything else, then the workbench on port 4900
 ```
 
-It installs the workbench, enables the Google Cloud APIs the workshop uses
-(Compute Engine, IAP and Vertex AI), and sets up Gemini for step 6. Then start
-the workbench with `scripts/start.sh`.
+`setup_project.sh` creates a project (`discrim-models-XXXX`), links billing to
+it, preferring an event credit account when you have one, and waits until the
+project can serve. Re-running it reuses the project in `~/project_id.txt`. To
+use a project you already have, put its ID in that file and skip this script.
 
-Gemini runs on Vertex AI in your project when you say yes to it, using
-`GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION=global` in `.env`, or on an AI
-Studio key. Setup also checks which model the project can call
+`setup_codelab.sh` asks nothing. It installs uv and the Python packages, enables
+Vertex AI, Compute Engine and IAP, points Gemini at Vertex AI in the project in
+`.env`, makes one real Gemini call with a model the project can call, builds the
+page, starts the workbench in the background and runs `scripts/check_setup.py`.
+Re-running it keeps your exercise files; `scripts/starter.sh` resets them. The
+decision model is chosen in step 2 of the workbench.
+
+On a laptop, sign in once with `gcloud auth login` and
+`gcloud auth application-default login`, then run the same two scripts.
+`scripts/stop.sh` stops the workbench, and `scripts/start.sh` runs it again in
+the foreground, after a break for example.
+
+Gemini runs on Vertex AI in your project, with your own Google credentials and
+no API key: `GOOGLE_GENAI_USE_VERTEXAI=1`, `GOOGLE_CLOUD_PROJECT` and
+`GOOGLE_CLOUD_LOCATION=global` in `.env`. Setup also checks which model the project can call
 (`scripts/pick_gemini_model.py`): it tries `gemini-flash-latest`, falls back to
 the newest Flash model the project lists, and saves the result as
 `JEV101_GEMINI_MODEL`. The arena workflow and the step 6 branches both read it.
@@ -149,15 +165,14 @@ scripts/start.sh            # http://localhost:4900
 scripts/dev.sh              # API on 4900, Vite with hot reload on 5274
 ```
 
-You need `uv`, `node`, and two credentials in a `.env` at the root:
+You need `uv`, `node`, `gcloud`, and these settings in a `.env` at the root.
+`setup_codelab.sh` writes the Gemini lines, and step 2 writes the model's:
 
 ```
-TYPESAFE_API_KEY=ts-...                # console.typesafe.ai/keys      (steps 2–6)
-GOOGLE_API_KEY=...                     # aistudio.google.com/apikey    (step 6)
-# or, instead of GOOGLE_API_KEY, Vertex AI through gcloud:
-# GOOGLE_GENAI_USE_VERTEXAI=1
-# GOOGLE_CLOUD_PROJECT=your-project
-# GOOGLE_CLOUD_LOCATION=global
+TYPESAFE_API_KEY=ts-...                # Jev (steps 2–6), or DiffusionGemma / rehearsal settings
+GOOGLE_GENAI_USE_VERTEXAI=1            # Gemini on Vertex AI (step 6), no API key
+GOOGLE_CLOUD_PROJECT=your-project
+GOOGLE_CLOUD_LOCATION=global
 ```
 
 `python3 scripts/check_setup.py` says what is set up. The pill at the top

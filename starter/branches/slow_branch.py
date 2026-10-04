@@ -12,7 +12,7 @@ that answer to check, which compares it with the card's real answer (spell_card.
 Gemini never sees.
 
 show_card and reader start with parts missing, marked TODO. Step 6b fills them in.
-Needs Gemini: an AI Studio key, or Vertex AI (see step 2).
+Needs Gemini on Vertex AI in your project: ./setup_codelab.sh sets it up.
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ root_agent = Workflow(
 async def main() -> int:
     if not (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
             or os.environ.get("GOOGLE_GENAI_USE_VERTEXAI")):
-        print("Gemini is not set up. See step 2, or run python3 scripts/check_setup.py.")
+        print("Gemini is not set up. Run ./setup_codelab.sh, which points it at Vertex AI.")
         return 2
 
     runner = InMemoryRunner(agent=root_agent, app_name="slow_branch")

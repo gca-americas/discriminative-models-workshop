@@ -114,7 +114,7 @@ def main() -> int:
     if args.fast:
         os.environ["JEV101_TICK_SECONDS"] = "0"
     if not gemini_ready():
-        print("Gemini is not set up. Put GOOGLE_API_KEY=... in .env, or set")
+        print("Gemini is not set up. Run ./setup_codelab.sh, which points it at Vertex AI. Or set")
         print("GOOGLE_GENAI_USE_VERTEXAI=1 and GOOGLE_CLOUD_PROJECT=... (with gcloud auth).")
         print("`python3 scripts/check_setup.py` shows the current state.")
         return 2

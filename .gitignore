@@ -17,3 +17,4 @@ app/mode_model.py
 app/reflex.py
 app/mode_workflow.py
 app/static/modes/
+.env.before

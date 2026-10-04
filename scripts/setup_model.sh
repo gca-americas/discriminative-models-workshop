@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Choose the decision model the workshop uses, check that it works, and point
-# the workshop at it. Run after scripts/setup.sh. Safe to run again, to switch.
+# the workshop at it. Run after ./setup_codelab.sh. Safe to run again, to switch.
 #
 #   Jev             TypeSafe's hosted model. Needs a TypeSafe API key; the key
 #                   is checked with one real request before it is kept.
@@ -38,7 +38,7 @@ done
 INTERACTIVE=1
 { [ "$YES" = 1 ] || [ ! -t 0 ]; } && INTERACTIVE=0
 [ -f .env ] || cp .env.example .env
-[ -x .venv/bin/python ] || { echo "Run scripts/setup.sh first."; exit 1; }
+[ -x .venv/bin/python ] || { echo "Run ./setup_codelab.sh first."; exit 1; }
 
 ask() {             # ask "question" default → echoes the answer
   local answer=""

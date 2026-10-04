@@ -94,9 +94,8 @@ def main() -> int:
     elif api_key:
         print(f"gemini          AI Studio key {mask(api_key)}")
     else:
-        print("gemini          not set up yet — only step 6 needs it. Either")
-        print("                GOOGLE_API_KEY=... (aistudio.google.com/apikey), or")
-        print("                GOOGLE_GENAI_USE_VERTEXAI=1 and GOOGLE_CLOUD_PROJECT=... with gcloud auth")
+        print("gemini          not set up yet — only step 6 needs it. Run ./setup_codelab.sh,")
+        print("                which points Gemini at Vertex AI in your project.")
     print(f"gemini model    {os.environ.get('JEV101_GEMINI_MODEL', 'gemini-flash-latest')}")
     print()
     print("model: ready" if jev_ok else "model: not ready")
