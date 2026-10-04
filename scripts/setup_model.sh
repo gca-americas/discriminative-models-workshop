@@ -94,10 +94,42 @@ try_jev() {
   return 1
 }
 
+# A VM this workshop set up before, still in the project: switching back to
+# DiffusionGemma only has to start it again, not set it up.
+gemma_vm_exists() {
+  local vm zone vm_project
+  vm="$(get_env JEV101_GEMMA_VM)"; zone="$(get_env JEV101_GEMMA_ZONE)"; vm_project="$(get_env JEV101_GEMMA_PROJECT)"
+  [ -n "$vm" ] && [ -n "$zone" ] && gcloud compute instances describe "$vm" --zone "$zone" \
+      ${vm_project:+--project "$vm_project"} --format='value(status)' >/dev/null 2>&1 < /dev/null
+}
+
 try_gemma() {
   if ! command -v gcloud >/dev/null 2>&1; then
     echo "· DiffusionGemma needs the gcloud CLI: https://cloud.google.com/sdk/docs/install"
     return 1
+  fi
+  if gemma_vm_exists; then
+    echo "· starting the DiffusionGemma VM you set up before, $(get_env JEV101_GEMMA_VM): about 2 minutes"
+    scripts/gemma_warm.sh on < /dev/null > runs/gemma-warm.log 2>&1 || { echo "  could not start it (runs/gemma-warm.log)"; return 1; }
+    # The model takes a few minutes to load after the VM starts.
+    local ready=0
+    for _ in $(seq 1 60); do
+      scripts/gemma_tunnel.sh start >/dev/null 2>&1 < /dev/null || true
+      if curl -s -m 8 "http://127.0.0.1:${JEV101_GEMMA_PORT:-8096}/health" 2>/dev/null | grep -q '"ok"'; then
+        ready=1; break
+      fi
+      sleep 10
+    done
+    [ "$ready" = 1 ] || {
+      echo "· the VM started, but the model did not answer within 10 minutes. Choose DiffusionGemma again"
+      echo "  in a few minutes, or look at the VM: sudo tail -50 /var/log/djev-startup.log"
+      return 1
+    }
+    echo "  the model is answering"
+    set_env TYPESAFE_BASE_URL "http://127.0.0.1:${JEV101_GEMMA_PORT:-8096}"
+    set_env JEV101_REHEARSAL ""
+    scripts/rehearsal.sh stop >/dev/null 2>&1 || true
+    return 0
   fi
   local project
   project="$(gcloud config get-value project 2>/dev/null || true)"
@@ -158,6 +190,12 @@ pick() {            # the menu, without the options that already failed → echo
   echo "${keys[$((line - 1))]}"
 }
 
+# What the workshop used before this run, so a switch can clean up after it.
+WAS_GEMMA=0
+case "$(get_env TYPESAFE_BASE_URL)" in
+  http://127.0.0.1:"${JEV101_GEMMA_PORT:-8096}"*) [ -n "$(get_env JEV101_GEMMA_VM)" ] && WAS_GEMMA=1 ;;
+esac
+
 CHOICE="$MODEL"
 while true; do
   if [ -z "$CHOICE" ]; then
@@ -192,6 +230,26 @@ while true; do
   fi
   CHOICE=""
 done
+
+# ── after a switch ─────────────────────────────────────────────────────────
+# Leaving DiffusionGemma: stop its VM, so the GPU is not billed while unused.
+# Choosing it again starts the same VM (see try_gemma).
+if [ "$WAS_GEMMA" = 1 ] && [ "$MODEL" != gemma ]; then
+  echo "· stopping the DiffusionGemma VM, $(get_env JEV101_GEMMA_VM): you no longer use it, and a stopped VM costs only its disk"
+  if scripts/gemma_warm.sh off < /dev/null > runs/gemma-warm.log 2>&1; then
+    echo "  stopped"
+  else
+    echo "  could not stop it (runs/gemma-warm.log); run scripts/gemma_warm.sh off"
+  fi
+fi
+
+# The arena app reads the model settings when it starts, so a running one would
+# keep the old model. Stop it; start it again from the step you are on.
+WORKBENCH="http://127.0.0.1:${JEV101_PORT:-4900}"
+if curl -s -m 3 "$WORKBENCH/api/app/status" 2>/dev/null | grep -q '"running": *true'; then
+  curl -s -m 15 -X POST "$WORKBENCH/api/app/stop" -H 'Content-Type: application/json' -d '{}' >/dev/null 2>&1 \
+    && echo "· stopped the arena app, so it picks up the new model: start it again in the step you are on"
+fi
 
 echo
 .venv/bin/python scripts/check_setup.py || true

@@ -14,6 +14,9 @@ VM="$(env_get JEV101_GEMMA_VM)"; ZONE="$(env_get JEV101_GEMMA_ZONE)"; PROJECT="$
 
 case "${1:-}" in
   on)
+    # The boot script may have changed since the VM was made; give it the current one.
+    gcloud compute instances add-metadata "$VM" --zone "$ZONE" --project "$PROJECT" \
+      --metadata-from-file startup-script=scripts/gemma_vm_startup.sh --quiet
     gcloud compute instances start "$VM" --zone "$ZONE" --project "$PROJECT" --quiet
     echo "waiting for the model to load…"
     for _ in $(seq 1 30); do

@@ -36,6 +36,18 @@ if ! command -v nvidia-ctk >/dev/null; then
   apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nvidia-container-toolkit
   nvidia-ctk runtime configure --runtime=docker && systemctl restart docker
 fi
+# The image's NVIDIA driver is a kernel module built for one kernel. Ubuntu's
+# automatic security updates can install a newer kernel, and on the next boot
+# the GPU has no driver ("nvml error: driver not loaded"). Install the module
+# for the running kernel when it is missing, then load it.
+if ! nvidia-smi >/dev/null 2>&1; then
+  echo "no NVIDIA driver for kernel $(uname -r); installing its module"
+  FLAVOUR="$(dpkg -l 'linux-modules-nvidia-*' 2>/dev/null | awk '/^ii/ {print $2}' \
+    | sed -E 's/^linux-modules-(nvidia-[0-9]+(-server)?(-open)?)-.*/\1/' | head -1)"
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "linux-modules-${FLAVOUR:-nvidia-580-server-open}-$(uname -r)"
+  modprobe nvidia
+fi
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
 
 # ── 2. weights from Hugging Face (public; no token needed) ──────────────────
