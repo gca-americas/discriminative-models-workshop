@@ -74,13 +74,15 @@ build a fast and smart system.
 :::section kicker="Outcomes" headline="What you will learn"
 - Explain how discriminative (System One) and generative (System Two) models
   differ, and when to use each.
+- Describe how Jev and DiffusionGemma are served, and set one up for the
+  workshop, including DiffusionGemma on a Compute Engine GPU VM.
 - Write Choice, Score, and Noul questions, and interpret probabilities and
   confidence.
 - Use thresholds in deterministic code to turn probabilities into actions.
-- Call a discriminative model with the TypeSafe SDK, against Jev or against
-  DiffusionGemma on Compute Engine.
-- Describe how DiffusionGemma is served: vLLM in a container on a GPU VM,
-  reached through Identity-Aware Proxy.
-- Build an ADK graph workflow that runs a discriminative model and Gemini in
-  parallel, at different speeds.
+- Build a request with the TypeSafe SDK, then let the model choose every move
+  in a game.
+- Build a slow branch, where Gemini reads an image, and a fast branch, where
+  the discriminative model decides in a loop, and run each on its own.
+- Join both branches in an ADK graph workflow that shares state on one event
+  loop, so slow work never holds up fast decisions.
 :::
