@@ -1180,6 +1180,75 @@ function ArenaGraph() {
   );
 }
 
+/* Step 6c: the arena app with the workflow mode added, and the ADK workflow
+   it starts in its own process. Step 5's files are muted; step 6's are lit. */
+function WorkflowModeStructure() {
+  const line = "var(--hairline-strong)";
+  const fast = "var(--accent)";
+  const group = (x: number, y: number, w: number, h: number, title: string, note: string, lit = false, muted = false) => (
+    <g opacity={muted ? 0.55 : 1}>
+      <rect x={x} y={y} width={w} height={h} rx="12"
+            fill={lit ? "color-mix(in srgb, var(--accent) 6%, transparent)" : "none"}
+            stroke={lit ? fast : line} strokeDasharray="4 3" />
+      <text x={x + 12} y={y + 20} style={strong}>{title}</text>
+      <text x={x + 12} y={y + 34} style={faint}>{note}</text>
+    </g>
+  );
+  const arrow = (d: string, word: string, wx: number, wy: number, color = line, id = "wm-a", dashed = false) => (
+    <g>
+      <path d={d} fill="none" stroke={color} strokeDasharray={dashed ? "4 3" : undefined} markerEnd={`url(#${id})`} />
+      <text x={wx} y={wy} textAnchor="middle" style={faint}>{word}</text>
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 760 340" role="img"
+         aria-label="The arena app with the workflow mode. The game from step 3: main.py, engine.py, sigil.py and static/app.js. The model mode from step 5: mode_model.py, reflex.py and static/modes/model.js. Step 6 adds mode_workflow.py, which starts the ADK workflow in agents/arena/agent.py as its own process, and static/modes/workflow.js, which draws the workflow fight. The workflow plays over HTTP, posting moves and spells back to the app, uses reflex.py's questions and choose(), and calls the Discriminative model through the TypeSafe SDK and Gemini on Vertex AI.">
+      <defs><Arrow id="wm-a" color={line} /><Arrow id="wm-b" color={fast} /></defs>
+
+      {group(10, 10, 190, 320, "The game", "step 3")}
+      <Box x={22} y={58} w={166} h={42} title="main.py" note="server · loads mode plugins" />
+      <Box x={22} y={110} w={166} h={42} title="engine.py" note="rules, moves, damage" />
+      <Box x={22} y={162} w={166} h={42} title="sigil.py" note="the spell cards" />
+      <Box x={22} y={268} w={166} h={42} title="static/app.js" note="the page · loads modes/*.js" />
+
+      {group(250, 10, 196, 150, "The model mode", "step 5", false, true)}
+      <g opacity={0.55}>
+        <Box x={262} y={50} w={172} h={30} title="mode_model.py" />
+        <Box x={262} y={86} w={172} h={30} title="reflex.py" />
+        <Box x={262} y={122} w={172} h={30} title="static/modes/model.js" />
+      </g>
+
+      {group(250, 172, 196, 158, "The workflow mode", "added in step 6", true)}
+      <Box x={262} y={212} w={172} h={44} title="mode_workflow.py" note="starts the workflow, judges it" accent />
+      <Box x={262} y={266} w={172} h={44} title="static/modes/workflow.js" note="draws the workflow fight" accent />
+
+      {group(516, 10, 234, 186, "The ADK workflow", "its own process", true)}
+      <rect x={528} y={50} width={210} height={134} rx="8"
+            fill="color-mix(in srgb, var(--accent) 14%, transparent)" stroke={fast} />
+      <text x={633} y={72} textAnchor="middle" style={strong}>agents/arena/agent.py</text>
+      {["fast: tick, check_spell", "slow: read_rune, spellwright,", "spell_ready", "end: summarise, bard"].map((t, i) => (
+        <text key={t} x={633} y={96 + i * 18} textAnchor="middle" style={mono}>{t}</text>
+      ))}
+
+      {group(516, 208, 234, 122, "The models", "outside the app")}
+      <Box x={528} y={250} w={210} h={40} title="Discriminative model" note="TypeSafe SDK" />
+      <Box x={528} y={296} w={210} h={28} title="Gemini · Vertex AI" />
+
+      {arrow("M188 79 C 225 79, 225 234, 260 234", "loads", 225, 140)}
+      {arrow("M188 289 L 260 289", "loads", 225, 283)}
+      {arrow("M434 226 C 481 226, 481 120, 526 120", "starts", 481, 168, fast, "wm-b")}
+      {arrow("M528 160 C 481 160, 481 250, 436 250", "", 0, 0, line, "wm-a", true)}
+      <text x={481} y={272} textAnchor="middle" style={faint}>moves, spells</text>
+      <text x={481} y={285} textAnchor="middle" style={faint}>over HTTP</text>
+      {arrow("M528 68 C 481 68, 481 101, 436 101", "", 0, 0, line, "wm-a", true)}
+      <text x={481} y={52} textAnchor="middle" style={faint}>questions,</text>
+      <text x={481} y={64} textAnchor="middle" style={faint}>choose()</text>
+      {arrow("M633 184 L 633 248", "", 0, 0, fast, "wm-b")}
+      {arrow("M738 150 C 756 150, 756 310, 740 310", "", 0, 0, fast, "wm-b")}
+    </svg>
+  );
+}
+
 /* One event loop, one thread: a branch runs until it reaches an await, then
    the loop runs the other one. Solid is running, dashed is waiting. */
 function EventLoop() {
@@ -1493,6 +1562,7 @@ const FIGURES: Record<string, () => ReactNode> = {
   "arena-graph": ArenaGraph,
   "graph-definition": GraphDefinition,
   "event-loop": EventLoop,
+  "workflow-mode-structure": WorkflowModeStructure,
   "tick-node": TickNode,
   "check-spell-node": CheckSpellNode,
   "read-rune-node": ReadRuneNode,

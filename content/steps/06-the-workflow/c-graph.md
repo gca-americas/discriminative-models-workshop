@@ -42,3 +42,14 @@ model your project can call in `JEV101_GEMINI_MODEL`.
 :::exercise id="gemini" plain="true"
 :::
 :::
+
+:::section kicker="Architecture" headline="Application structure"
+The workflow mode adds two files to the game: `mode_workflow.py` on the server
+and `static/modes/workflow.js` on the page. `mode_workflow.py` starts the ADK
+workflow in `agents/arena/agent.py` as its own process. The workflow plays over
+HTTP, posting each move and spell back to the app to be judged, and calls both
+models.
+
+:::figure id="workflow-mode-structure"
+:::
+:::
