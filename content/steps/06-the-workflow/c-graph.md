@@ -1,0 +1,43 @@
+:::section kicker="Graph" headline="Graph definition"
+:::figure id="graph-definition"
+:::
+
+```python
+root_agent = Workflow(
+    name="arena",
+    edges=[
+        ("START", enter),
+        (enter, (read_rune, tick)),                   # fan-out: slow branch + fast loop
+        (read_rune, spellwright, spell_ready),
+        (spell_ready, {"retry": read_rune, "stored": rest}),   # misread: read the new spell card; else rest
+        (tick, {"next": check_spell, "recast": read_rune, "done": summarise}),
+        (check_spell, {"again": tick}),               # not ready? keep fighting
+        (summarise, bard, finish),
+    ],
+)
+```
+
+A tuple as a *target* is a fan-out. A tuple as an *edge* is a chain. A dict
+maps route names to nodes. `tick → check_spell → tick` is the fast loop.
+`"recast": read_rune` starts the slow thread again after a spell is spent,
+`"retry"` does the same after a fizzle, and `"stored": rest` lets the slow
+thread end quietly, with no output, once the spell is in the slot. ADK requires at least one routed
+edge in a cycle, so an unconditional loop is rejected before it can run
+forever.
+
+:::note
+`root_agent` is what ADK's tools look for. `adk web agents` from the root of
+the workshop opens the dev UI with the arena in it, if you want to see the
+graph and the events in a browser rather than a terminal.
+:::
+:::
+
+:::section kicker="Prerequisites" headline="Gemini access"
+The workflow puts the Discriminative model and Gemini together, so Gemini needs credentials too:
+either `GOOGLE_API_KEY` from AI Studio, or Vertex AI through `gcloud` with
+`GOOGLE_GENAI_USE_VERTEXAI=1` and `GOOGLE_CLOUD_PROJECT`. The setup check
+reports both.
+
+:::exercise id="gemini" plain="true"
+:::
+:::

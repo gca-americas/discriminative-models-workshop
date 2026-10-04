@@ -15,7 +15,7 @@ import { Inline } from "./Inline";
 const PY_TOKEN =
   /(#.*$)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')(\s*:)?|\b(\d+(?:\.\d+)?)\b|\b(True|False|None|def|return|import|from|with|as|if|else|for|in)\b|\b([A-Z][A-Z0-9_]{2,})\b|([{}[\](),:])/gm;
 
-function highlightPython(text: string): ReactNode[] {
+export function highlightPython(text: string): ReactNode[] {
   const out: ReactNode[] = [];
   let last = 0;
   let n = 0;

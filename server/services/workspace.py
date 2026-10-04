@@ -27,6 +27,8 @@ from server.services import appproc
 ROOT = config.ROOT
 
 # Noise a beginner should not have to look past.
+# Folders whose Python files the terminal runs for real.
+RUNNABLE = {ROOT / "scripts", ROOT / "branches"}
 HIDDEN = {".venv", "node_modules", "__pycache__", ".git", "dist", "runs",
           ".pytest_cache", ".ruff_cache", "web/dist"}
 
@@ -99,7 +101,7 @@ def tree(start: str = "", depth: int = 3) -> dict[str, Any]:
     }
 
 
-SECRETS = {".env"}      # holds API keys: never printed, never listed
+SECRETS = {".env"}      # holds API keys: not in the file explorer; the terminal shows it when asked
 
 
 def read(relative: str) -> dict[str, Any]:
@@ -137,7 +139,7 @@ HELP = """Available commands:
   ls [-la] [path]     list files (-l details, -a dotfiles too)
   cd <path>           change folder
   cat <file>          print a file
-  python3 <file.py>   run the app, or one of the workshop's scripts
+  python3 <file.py>   run the app, a workshop script, or a step 6 branch
   clear               clear the screen"""
 
 SCRIPT_TIMEOUT = 180
@@ -148,13 +150,13 @@ def prompt(cwd_relative: str = "") -> str:
 
 
 def _ls(target: Path, long: bool = False, every: bool = False) -> str:
-    """ls, with the two flags people reach for: -a also lists dotfiles (never
-    .env, which holds keys, and never the tool folders), -l one per line with
-    size and date."""
+    """ls, with the two flags people reach for: -a also lists dotfiles,
+    .env included (never the tool folders), -l one per line with size and
+    date."""
     def shown(child: Path) -> bool:
-        if child.name in SECRETS or child.name in HIDDEN:
+        if child.name in HIDDEN:
             return False
-        return every or not _hidden(child)
+        return every or not _hidden(child)      # .env is a dot file: ls -a shows it
 
     children = [target] if target.is_file() else sorted(
         (c for c in target.iterdir() if shown(c)), key=lambda p: (p.is_file(), p.name.lower()))
@@ -244,6 +246,10 @@ def run(line: str, cwd_relative: str = "") -> dict[str, Any]:
             target = resolve(str(Path(relative_cwd) / args[0]))
         except OutsideWorkspace:
             return {**reply, "output": f"cat: {args[0]}: outside the project"}
+        if target.name in SECRETS and target.is_file():
+            # Asked for by name in the terminal: show it, so people see where
+            # their settings live. The explorer still never opens it.
+            return {**reply, "output": target.read_text().rstrip("\n")}
         found = read(str(target.relative_to(ROOT)))
         if "error" in found:
             return {**reply, "output": f"cat: {args[0]}: {found['error']}"}
@@ -256,11 +262,12 @@ def run(line: str, cwd_relative: str = "") -> dict[str, Any]:
         except OutsideWorkspace:
             return {**reply, "output": f"python3: {script}: outside the project"}
 
-        # The workshop's own scripts run for real, with any arguments after the
+        # The workshop's own scripts (scripts/, and the step 6 branches in
+        # branches/) run for real, with any arguments after the
         # file name. Anything else in the project does not: this is a terminal
         # for the exercises, not an interpreter. They run on the workbench's
         # own interpreter, which is where the SDKs are installed.
-        if target is not None and target.parent == (ROOT / "scripts") and target.is_file():
+        if target is not None and target.parent in RUNNABLE and target.is_file():
             from server.services import environment
 
             done = subprocess.run(

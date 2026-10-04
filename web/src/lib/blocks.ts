@@ -28,6 +28,7 @@ export type Block =
   | { kind: "figure"; id: string; caption: string; src?: string }
   | { kind: "console"; url: string; label: string; note: string }
   | { kind: "file"; path: string; label: string }
+  | { kind: "exercise"; id: string; plain: boolean }
   | { kind: "columns"; children: Block[][] }
   | { kind: "section"; kicker: string; headline: string; children: Block[] };
 
@@ -101,6 +102,10 @@ export function parseBlocks(markdown: string): Block[] {
         caption: attribute(rawArgs, "caption"),
         src: attribute(rawArgs, "src") || undefined,
       });
+    } else if (name === "exercise") {
+      // A "Your turn" inside the reading; the tasks live in step.yaml, under
+      // the part's `exercises`, by this id.
+      blocks.push({ kind: "exercise", id: attribute(rawArgs, "id"), plain: attribute(rawArgs, "plain") === "true" });
     } else if (name === "file") {
       // A button that shows a project file, read-only, in place.
       blocks.push({ kind: "file", path: attribute(rawArgs, "path"), label: attribute(rawArgs, "label") });

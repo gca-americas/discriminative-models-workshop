@@ -31,6 +31,13 @@ It installs the workbench, enables the Google Cloud APIs the workshop uses
 (Compute Engine, IAP and Vertex AI), and sets up Gemini for step 6. Then start
 the workbench with `scripts/start.sh`.
 
+Gemini runs on Vertex AI in your project when you say yes to it, using
+`GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION=global` in `.env`, or on an AI
+Studio key. Setup also checks which model the project can call
+(`scripts/pick_gemini_model.py`): it tries `gemini-flash-latest`, falls back to
+the newest Flash model the project lists, and saves the result as
+`JEV101_GEMINI_MODEL`. The arena workflow and the step 6 branches both read it.
+
 The decision model is chosen on its own, in step 2 of the workbench, or from a
 terminal with `scripts/setup_model.sh`:
 
@@ -182,7 +189,7 @@ in rehearsal mode, spell cards included.
 | 4 Discriminative model concepts | 9 | System One and System Two models; Choice, Score, and Noul; probability, confidence, and thresholds. Two interactive widgets. |
 | 5 Automate decisions with the model | 9 | Run the arena with the model choosing each response. Fill in a request (a telegraph and a choice question) and run it. Review the probabilities, the confidence rule in `choose()`, latency and cost. The model avoids damage but cannot win. |
 | 6 Combine models in an ADK workflow | 15 | `agents/arena/agent.py`: an ADK graph with a fast model loop and a parallel Gemini branch that reads the spell card image and casts the spell, validated by the arena. |
-| 7 Summary and next steps | 3 | When to use code, a discriminative model, or a language model; limitations, cost, and next steps. |
+| 7 Summary and next steps | 3 | When to use code, a discriminative model, or a language model; limitations; a summary of the lab. |
 
 ## Architecture
 
@@ -268,6 +275,10 @@ app/                the arena app, as built so far (see "The app, one stage at a
   mode_workflow.py  step 6: the server side of "Workflow fights"
 stages/             the source of app/: one folder per step, each laid on top of the last
 agents/arena/agent.py   the ADK Workflow (root_agent), also served by ADK web at /inspector
+branches/            step 6b's exercises: each branch as a workflow of its own, nothing from the arena
+  slow_branch.py    Gemini reads spell_card.png and is checked against spell_card.json
+  fast_branch.py    the Discriminative model decides on a list of moves, in a loop
+starter/            unedited copies of the files the exercises fill in (Reset restores from here)
 scripts/
   stage.py          builds app/ up to a step: python3 scripts/stage.py 5
   jevauth.py        where the Discriminative model lives, and how to authenticate to it
@@ -359,8 +370,9 @@ The engine is the Cloud 101 workbench with the Google Cloud course removed:
 - **The app** runs as a separate process and is proxied at `/app`, so the
   iframe is same-origin.
 - **ADK web** (ADK's development UI) is mounted at `/inspector` with
-  `get_fast_api_app(url_prefix="/inspector")`, loading `agents/`. Step 6b
-  embeds it with the `inspector` task kind (`/inspector/dev-ui/?app=arena`).
+  `get_fast_api_app(url_prefix="/inspector")`, loading `agents/`. The
+  `inspector` task kind can embed it (`/inspector/dev-ui/?app=arena`); no step
+  uses it at the moment.
   A run started there executes inside the workbench process and plays on the
   arena app. `/api/inspector` reports whether it loaded.
 - **Environment** (`/api/env`) reports whether the Discriminative model and Gemini are set up.

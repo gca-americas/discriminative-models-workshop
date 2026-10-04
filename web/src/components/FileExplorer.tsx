@@ -338,7 +338,7 @@ export function FileExplorer({
           <div className="border-b px-4 py-2 text-xs" style={{ borderColor: "var(--hairline)", color: "var(--fg-muted)" }}>
             {Object.keys(marks).length > 0 && (
               <>
-                Compared with manual mode: files this step adds are marked{" "}
+                Compared with {modeName(task?.compare ?? null)}: files this step adds are marked{" "}
                 <span className="font-semibold" style={{ color: "var(--accent)" }}>NEW</span>
                 {Object.values(marks).some((m) => m.status === "changed") && <>, and changed lines are highlighted</>}.{" "}
               </>
@@ -388,7 +388,11 @@ export function FileExplorer({
             className="quiet-scroll overflow-auto"
             style={{ maxHeight: 840, background: "var(--viewer-bg)" }}
           >
-            {problem ? (
+            {problem && marks[selected]?.status === "added" ? (
+              <p className="p-4 text-sm" style={{ color: "var(--fg-muted)" }}>
+                This file is not in the game yet. Update the game above to add it.
+              </p>
+            ) : problem ? (
               <p className="p-4 font-mono text-[0.75rem]" style={{ color: "var(--bad)" }}>
                 {problem}
               </p>

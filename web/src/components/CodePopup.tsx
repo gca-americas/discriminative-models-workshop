@@ -6,6 +6,8 @@
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+import { highlightPython } from "./EditTask";
+
 const COLOR = {
   key: "var(--syn-key)",
   str: "var(--syn-str)",
@@ -65,7 +67,7 @@ export function highlightHttp(text: string): ReactNode[] {
 }
 
 export function CodePopup({ title, code, format = "http", onClose }: {
-  title: string; code: string; format?: "http" | "json"; onClose: () => void;
+  title: string; code: string; format?: "http" | "json" | "python"; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -102,7 +104,7 @@ export function CodePopup({ title, code, format = "http", onClose }: {
           className="quiet-scroll m-0 overflow-auto px-5 py-4 font-mono text-[0.8rem] leading-relaxed"
           style={{ background: "var(--viewer-bg)", color: "var(--viewer-fg)" }}
         >
-          <code>{format === "json" ? json(code, "j") : highlightHttp(code)}</code>
+          <code>{format === "json" ? json(code, "j") : format === "python" ? highlightPython(code) : highlightHttp(code)}</code>
         </pre>
       </div>
     </div>,

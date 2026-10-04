@@ -16,121 +16,284 @@ parts:
     label: Implementation
     headline: Fan-out, loop, and shared state
     body: b-the-code.md
-    exercise:
-      title: Review the workflow
-      intro: >
-        The whole arena is one file. The nodes are in the middle, and the
-        graph is five lines at the bottom.
-      tasks:
+    exercises:
+      slow:
+        title: Run the slow branch on its own
+        intro: '`branches/slow_branch.py` is the slow branch as a workflow of its own:
+          one spell card image, Gemini, and a check. Nothing from the arena. Build its
+          two missing pieces, then run it.'
+        tasks:
+        - kind: assemble
+          id: slow-image
+          title: Send the image to Gemini
+          file: branches/slow_branch.py
+          symbols:
+          - show_card
+          explain: '`show_card` sends Gemini a line of text, but not the card. Drag
+            the piece that adds the card to the message into the slot, then check and
+            save. To see what Gemini does without the image, run the branch once before
+            you change anything.'
+          template: "def show_card(ctx: Context, node_input) -> Event:\n    \"\"\"Send\
+            \ the spell card to Gemini: a line of text and the image itself.\"\"\"\n\
+            \    png = CARD.read_bytes()\n    return Event(output=types.Content(role=\"\
+            user\", parts=[\n        types.Part(text=\"Here is a spell card. Read it\
+            \ and sing the matching spell.\"),\n        {{image}}\n    ]), state={\"\
+            sent_at\": time.perf_counter()})\n"
+          slots:
+            image:
+              answer:
+              - bytes
+              one: true
+              label: the card itself, as a part Gemini can see
+          pieces:
+          - id: bytes
+            code: types.Part.from_bytes(data=png, mime_type="image/png"),
+          - id: text
+            code: types.Part(text=png),
+            why: '`types.Part(text=...)` sends text. The card is an image, so Gemini
+              needs it as image bytes.'
+          - id: uri
+            code: types.Part.from_uri(file_uri="spell_card.png", mime_type="image/png"),
+            why: '`from_uri` points Gemini at a file it can fetch, such as one in Cloud
+              Storage. Gemini cannot read a file on this machine; send the bytes you
+              already read into `png`.'
+          hints:
+          - The card goes in the same `parts` list as the text, as one more part, and
+            it is already read into `png`.
+          - 'A part made from bytes needs the bytes and what they are: `image/png`.'
+        - kind: assemble
+          id: slow-agent
+          title: Define the agent
+          file: branches/slow_branch.py
+          symbols:
+          - reader
+          explain: '`reader` has a name and a model, but no instructions and no shape
+            for its answer. `Spell` and `INSTRUCTION`, shown above it, are already in
+            the file. Drag in the arguments `reader` needs, in any order, then check
+            and save. The graph hands `reader`''s answer straight to `check`, so it
+            does not need to be kept anywhere else.'
+          template: "reader = LlmAgent(\n    name=\"reader\",\n    model=GEMINI_MODEL,\n\
+            \    {{args}}\n)\n"
+          slots:
+            args:
+              answer:
+              - instruction
+              - schema
+              label: what reader is told to do, and the shape its answer must have
+          pieces:
+          - id: instruction
+            code: instruction=INSTRUCTION,
+          - id: schema
+            code: output_schema=Spell,
+          - id: tools
+            code: tools=[show_card],
+            why: '`tools` are functions the model may decide to call. The card does
+              not come from a tool: the graph hands `show_card`''s output to `reader`
+              as its user turn.'
+          - id: free
+            code: output_schema=str,
+            why: '`output_schema=str` lets Gemini answer in any words. `check` needs
+              an element and three glyphs, which is the `Spell` schema.'
+          - id: vague
+            code: instruction="Describe the image.",
+            why: That instruction never says what a spell card is or how to read one.
+              `INSTRUCTION` above spells it out.
+          hints:
+          - An `LlmAgent` needs to know what to do, and what shape its answer must have
+            so `check` can read it.
+          - 'Two pieces: the `INSTRUCTION` above, and the `Spell` schema.'
+          context: "class Spell(BaseModel):\n    element: str          # fire, frost,\
+            \ earth or storm: the colour of the border\n    glyphs: list[str]     #\
+            \ the three shapes, left to right\n    incantation: str      # one shouted\
+            \ line that names the element\n\n\n# What the reader is told, every time.\
+            \ The card itself arrives as its user turn.\nINSTRUCTION = (\n    \"You\
+            \ read spell cards. A card has a coloured border and three \"\n    \"shapes\
+            \ in a row. The colour is the element: red-orange is fire, \"\n    \"light\
+            \ blue is frost, green is earth, purple is storm. Read the \"\n    \"three\
+            \ shapes left to right. Each is exactly one of: circle, ring, \"\n    \"\
+            square, diamond, triangle, cross, crescent, bar. A ring is a \"\n    \"\
+            hollow circle; a bar is a horizontal line; a crescent is a circle \"\n \
+            \   \"with a bite out of its right side. Return the element, the shapes\
+            \ \"\n    \"in order, and a short incantation that names the element. If\
+            \ there \"\n    \"is no image, say so in the incantation and guess.\"\n\
+            )\n"
         - kind: terminal
-          id: stage
-          title: Add the workflow fight to the app
+          id: slow-run
+          title: Run the slow branch
           expect:
-            - python3 scripts/stage.py 6
-          explain: >
-            This lays the step 6 files on top of step 5 and starts the app again:
-            `mode_workflow.py`, which starts the ADK workflow and receives its
-            moves and spells, and `static/modes/workflow.js`, which draws them.
-            The workflow itself is `agents/arena/agent.py`, below.
-        - kind: files
-          id: read
-          title: Review agents/arena/agent.py
-          start: agents
-          open: agents/arena/agent.py
-          stage: 6
-          explain: >
-            Start at `tick()`, the Discriminative model loop. Then `read_rune()`, `spellwright`
-            and `spell_ready()`: the Gemini branch that reads an image, sings,
-            is judged, and writes into state without producing output. Then
-            the `Workflow(...)` at the bottom: one fan-out, one back edge, one
-            route that starts the branch again.
-        - kind: inspector
-          id: adk-web
-          title: Inspect the workflow in ADK web
-          appTitle: ADK web
-          explain: |
-            ADK web is ADK's development UI, mounted in this workbench. It loads agents/arena/agent.py, the same workflow the terminal runs, and shows every node, event and state change.
-            1. Select Open ADK web. The arena app is already selected.
-            2. Select the graph icon in the toolbar. The graph shows enter fanning out to tick and read_rune, tick looping through check_spell, and the Gemini branch ending at rest. Close the graph.
-            3. In the message box, send any message, such as "Start the match". The run takes about 45 seconds.
-            4. When it finishes, select the menu button to open the side panel, then select an event. The panel shows the run as a graph, with how many times each node and route ran. The State tab shows values such as spell, tick, you and foe. For the full layout, select Open in a new tab.
+          - python3 branches/slow_branch.py
+          explain: Choose a spell card, then run `python3 branches/slow_branch.py`.
+            It prints what Gemini read, the card's real answer, and whether they match.
+            Gemini takes a few seconds, which is why this branch is the slow one. Choose
+            another card and run it again.
+          cards: true
+          showFile: branches/slow_branch.py
+      fast:
+        title: Run the fast branch on its own
+        intro: '`branches/fast_branch.py` is the fast branch as a workflow of its own:
+          a list of moves, the Discriminative model, and a loop. Nothing from the arena.
+          Assemble its `tick`, then run it.'
+        tasks:
+        - kind: assemble
+          id: fast-tick
+          title: Assemble tick
+          file: branches/fast_branch.py
+          symbols:
+          - tick
+          explain: '`tick` takes the next move, asks the model which response is right,
+            reads the answer, and picks the next edge. Drag the pieces into the slots,
+            then check and save. The call and its answer go in the middle; the last
+            two slots decide whether the loop goes on.'
+          template: "async def tick(ctx: Context, node_input) -> Event:\n    \"\"\"\
+            One move, one decision, then pick the next edge.\"\"\"\n    number = int(ctx.state.get(\"\
+            tick\", 0)) + 1\n    move = MOVES[number - 1]\n\n    started = time.perf_counter()\n\
+            \    async with AsyncTypeSafeClient(**client_kwargs()) as model:\n     \
+            \   answers = await {{call}}\n            {{request}}\n        )\n    ms\
+            \ = round((time.perf_counter() - started) * 1000)\n    response = {{answer}}\n\
+            \    decision = {\"tick\": number, \"move\": move, \"action\": response.choice,\n\
+            \                \"confidence\": round(response.confidence, 2), \"ms\":\
+            \ ms}\n\n    {{over}}\n\n    {{routes}}\n\n    return Event(output=decision,\
+            \ route=routes,\n                 state={\"tick\": number, \"decisions\"\
+            : [*ctx.state.get(\"decisions\", []), decision]})\n"
+          slots:
+            call:
+              answer:
+              - call
+              one: true
+              label: the call that asks the Discriminative model
+            request:
+              answer:
+              - state
+              - questions
+              label: what to judge (state) and what to ask about it (questions)
+            answer:
+              answer:
+              - choice
+              one: true
+              label: the model's answer to the "response" question
+            over:
+              answer:
+              - over
+              one: true
+              label: true when this tick played the last move
+            routes:
+              answer:
+              - routes
+              one: true
+              label: 'the edge to take next: "next" or "done"'
+          pieces:
+          - id: call
+            code: model.system_one(
+          - id: state
+            code: 'state={"opponent": OPPONENT, "telegraph": move},'
+          - id: questions
+            code: "questions={\"response\": Choice(\n    instructions=\"The opponent\
+              \ has just done this. What is the right response?\",\n    criteria=RESPONSES)},"
+          - id: choice
+            code: answers.choices["response"]
+          - id: over
+            code: over = number >= len(MOVES)
+          - id: routes
+            code: routes = ["done" if over else "next"]
+          - id: generate
+            code: model.generate(
+            why: '`generate` is how a language model writes text. A Discriminative model
+              is asked with `system_one`: state and typed questions, typed answers.'
+          - id: chat
+            code: 'messages=[{"role": "user", "content": move}],'
+            why: '`system_one` does not take a chat. It takes `state`, what to judge,
+              and `questions`, what to ask about it.'
+          - id: noul
+            code: answers.nouls["response"]
+            why: '`response` was asked as a Choice, so its answer is in `answers.choices`.
+              `answers.nouls` holds yes/no questions.'
+          - id: past
+            code: over = number > len(MOVES)
+            why: '`number` counts from 1, so the last move is `number == len(MOVES)`.
+              With `>`, the loop asks for a move that does not exist.'
+          - id: never
+            code: routes = ["next"]
+            why: 'Always `"next"` never ends: after the last move the loop needs `"done"`.'
+          hints:
+          - 'The model''s call is `system_one`, and it takes two arguments: `state`,
+            what to judge, and `questions`, what to ask about it.'
+          - '`response` is asked as a Choice, so its answer is in `answers.choices`.
+            `over` is true on the last move, when `number` equals `len(MOVES)`, and
+            then the route is `"done"`.'
+        - kind: terminal
+          id: fast-run
+          title: Run the fast branch
+          expect:
+          - python3 branches/fast_branch.py
+          explain: 'It prints one line per tick: the move, the model''s response, its
+            confidence and how long the call took. All five moves should play.'
 
   - id: c
-    label: Run
-    headline: Run the workflow
-    body: c-run-it.md
+    label: Graph
+    headline: Graph definition
+    body: c-graph.md
     exercise:
       title: Start the workflow
-      intro: >
-        Switch the arena to "Workflow fights" and press Start. That launches
-        the ADK workflow: the Discriminative model starts fighting at once, and Gemini starts
-        reading the spell card alongside. Then run it from the terminal too, to see
-        the same fight as a timeline.
+      intro: Update the game to workflow mode and look at what it adds. Then start
+        the workflow in the arena.
       tasks:
+      - kind: files
+        id: workflow-files
+        title: Update the game and review the changes
+        start: app
+        open: app/mode_workflow.py
+        stage: 6
+        compare: 5
+        explain: 'If the bar says the game is in Discriminative model mode, press
+          "Update game to workflow mode". The files marked NEW are what this step
+          adds to the game: `mode_workflow.py` starts the ADK workflow and receives
+          its moves and spells, and `static/modes/workflow.js` draws them on the page.
+          The workflow itself is `agents/arena/agent.py`, the code from parts b and
+          c.'
+      - kind: app
+        id: watch
+        title: Arena app
+        appTitle: Arena
+        explain: 'The arena opens in "Workflow fights". Press Start. The fight begins
+          straight away. Watch the badge at the top of the stage: every tick, the
+          fighter checks the spell slot and says "not ready" until Gemini''s song
+          lands. Restart runs a fresh fight.'
+        appMode: workflow
+    checks:
+    - id: workflow-mode
+      label: The app has the workflow fight
+      probe: curl -s http://127.0.0.1:$APP_PORT/api/health
+      assert: contains
+      value: '"id": "workflow"'
+      hint: Press "Update game to workflow mode" in the file explorer above.
+    - id: gemini-ready
+      label: Gemini credentials are configured
+      probe: python3 scripts/check_setup.py
+      assert: not_contains
+      value: gemini          not set up
+      hint: 'Add GOOGLE_API_KEY=... to .env, or GOOGLE_GENAI_USE_VERTEXAI=1 and GOOGLE_CLOUD_PROJECT=...
+        with gcloud signed in.
+
+        '
+    - id: arena-runs
+      label: Workflow completed a match
+      probe: python3 scripts/arena.py --fast
+      assert: contains
+      value: spells cast
+      hint: The fight needs both the Discriminative model and Gemini. Check the model
+        light at the top right, and the Gemini check in the Gemini access card above.
+    exercises:
+      gemini:
+        title: Verify Gemini access
+        tasks:
         - kind: terminal
           id: check
           title: Verify Gemini access
           expect:
-            - python3 scripts/check_setup.py
-          explain: >
-            The `gemini` line must not say "not set up yet". If it does, add
-            `GOOGLE_API_KEY=...` to `.env`, or the Vertex AI variables, and run
-            it again.
-        - kind: app
-          id: watch
-          title: Arena app
-          appTitle: Arena
-          explain: >
-            Select "Workflow fights" and press Start. The fight begins
-            straight away. Watch the badge at the top of the stage: every
-            tick, the fighter checks the spell slot and says "not ready" until
-            Gemini's song lands. Restart runs a fresh fight.
-        - kind: intent
-          id: fight
-          title: Start the workflow from the terminal
-          prompt: >
-            Say that you want the fight to begin, in your own words. It runs
-            the same workflow and prints its timeline here, while the arena
-            above draws it.
-          example: Start the workflow and run a match
-          expect:
-            goal: Run the arena workflow once.
-            requires:
-              - [fight, bell, arena, ogre, round, battle, go, start, run, begin, workflow, match]
-            rejects:
-              - [delete, remove]
-            feedback:
-              missing_0: Say what you want to happen, like "start the fight".
-              accepted: Starting the workflow. The Discriminative model handles each tick; Gemini reads the spell card.
-          command: python3 scripts/arena.py
-        - kind: terminal
-          id: again
-          title: Modify and rerun
-          expect:
-            - python3 scripts/arena.py --seed 7
-            - python3 scripts/arena.py --fast
-          explain: >
-            `--seed` repeats the same ogre; Gemini's songs will still differ.
-            `--fast` removes the pause between ticks: the fight is over in
-            eight seconds and the first spell arrives after the last blow.
-    checks:
-      - id: workflow-mode
-        label: The app has the workflow fight
-        probe: curl -s http://127.0.0.1:$APP_PORT/api/health
-        assert: contains
-        value: '"id": "workflow"'
-        hint: Run python3 scripts/stage.py 6 in the terminal in part b.
-      - id: gemini-ready
-        label: Gemini credentials are configured
-        probe: python3 scripts/check_setup.py
-        assert: not_contains
-        value: "gemini          not set up"
-        hint: >
-          Add GOOGLE_API_KEY=... to .env, or GOOGLE_GENAI_USE_VERTEXAI=1 and
-          GOOGLE_CLOUD_PROJECT=... with gcloud signed in.
-      - id: arena-runs
-        label: Workflow completed a match
-        probe: python3 scripts/arena.py --fast
-        assert: contains
-        value: "spells cast"
-        hint: The fight needs both the Discriminative model and Gemini. Run it in the terminal to see which one failed.
+          - cat .env
+          explain: Run `cat .env`. This is the file at the root of the workshop where
+            setup saved your settings. For Gemini, look for `GOOGLE_GENAI_USE_VERTEXAI`,
+            `GOOGLE_CLOUD_PROJECT` and `JEV101_GEMINI_MODEL`, or for `GOOGLE_API_KEY`.
+            If none of them is there, add `GOOGLE_API_KEY=...`, or the Vertex AI variables,
+            and print it again. The file holds your keys too, so keep it off shared
+            screens.

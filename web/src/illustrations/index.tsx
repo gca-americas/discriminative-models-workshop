@@ -398,59 +398,41 @@ function RequestPath() {
   );
 }
 
-function LongRunning() {
+function ParallelBranch() {
   const ticks = Array.from({ length: 15 }, (_, i) => i);
   const READY = 10;                     // the tick that first sees the spell
   const tx = (i: number) => 20 + i * 38;
   return (
-    <svg viewBox="0 0 620 262" role="img"
-         aria-label="Suspend and resume: the workflow submits a job, stops while it runs, and resumes when the result arrives. Parallel branch: the tick loop keeps running while Gemini works on a separate branch, and the first tick after the spell is written to state casts it.">
+    <svg viewBox="0 0 620 150" role="img"
+         aria-label="Parallel branch with shared state: the tick loop keeps running every half second, and each tick reads the spell slot. Meanwhile the spell branch runs read_rune, spellwright on Gemini for a few seconds, and spell_ready, which writes the spell to state. The first tick after that casts it.">
       <defs><Arrow id="lr-a" color="var(--hairline-strong)" /><Arrow id="lr-b" color="var(--accent)" /></defs>
 
-      {/* suspend and resume */}
-      <text x={20} y={22} style={strong}>Suspend and resume</text>
-      <text x={158} y={22} style={faint}>LongRunningFunctionTool · RequestInput</text>
-      <Box x={20} y={36} w={84} h={32} title="submit" />
-      <line x1="104" y1="52" x2="118" y2="52" stroke="var(--hairline-strong)" markerEnd="url(#lr-a)" />
-      <text x={122} y={56} style={mono}>pending</text>
-      <line x1="176" y1="52" x2="424" y2="52" stroke="var(--hairline-strong)" strokeDasharray="4 4" />
-      <text x={300} y={46} textAnchor="middle" style={faint}>workflow suspended · call ID saved in the session</text>
-      <line x1="424" y1="52" x2="436" y2="52" stroke="var(--hairline-strong)" markerEnd="url(#lr-a)" />
-      <Box x={438} y={36} w={78} h={32} title="resume" />
-      <line x1="516" y1="52" x2="530" y2="52" stroke="var(--hairline-strong)" markerEnd="url(#lr-a)" />
-      <Box x={532} y={36} w={74} h={32} title="next node" />
-      <text x={438} y={84} style={faint}>FunctionResponse with the call ID</text>
-
-      <line x1="20" y1="104" x2="600" y2="104" stroke="var(--hairline)" />
-
-      {/* parallel branch */}
-      <text x={20} y={128} style={{ ...strong, fill: "var(--accent)" }}>Parallel branch with shared state</text>
-      <text x={232} y={128} style={faint}>this arena</text>
-      <text x={20} y={150} style={faint}>tick loop · every 0.5 s</text>
+      <text x={20} y={20} style={{ ...strong, fill: "var(--accent)" }}>Parallel branch with shared state</text>
+      <text x={20} y={42} style={faint}>tick loop · every 0.5 s</text>
       {ticks.map((i) => {
         const cast = i === READY;
         return (
           <g key={i}>
-            <rect x={tx(i)} y={158} width={30} height={22} rx="5"
+            <rect x={tx(i)} y={50} width={30} height={22} rx="5"
                   fill={cast ? "var(--accent)" : "var(--card)"}
                   stroke={cast ? "var(--accent)" : "var(--hairline-strong)"} />
-            <text x={tx(i) + 15} y={173} textAnchor="middle"
+            <text x={tx(i) + 15} y={65} textAnchor="middle"
                   style={{ ...mono, fontSize: 9, fill: cast ? "var(--bg, #fff)" : "var(--fg-faint)" }}>
               {cast ? "cast" : "tick"}
             </text>
           </g>
         );
       })}
-      <text x={20} y={196} style={faint}>each tick reads state["spell"]: not ready</text>
+      <text x={20} y={88} style={faint}>each tick reads state["spell"]: not ready</text>
 
-      <text x={20} y={218} style={faint}>spell branch</text>
-      <Box x={92} y={206} w={78} h={32} title="read_rune" />
-      <line x1="170" y1="222" x2="184" y2="222" stroke="var(--hairline-strong)" markerEnd="url(#lr-a)" />
-      <Box x={186} y={206} w={176} h={40} title="spellwright" note="Gemini · a few seconds" />
-      <line x1="362" y1="222" x2="376" y2="222" stroke="var(--hairline-strong)" markerEnd="url(#lr-a)" />
-      <Box x={378} y={206} w={96} h={32} title="spell_ready" accent />
-      <line x1={tx(READY) + 15} y1="206" x2={tx(READY) + 15} y2="184" stroke="var(--accent)" markerEnd="url(#lr-b)" />
-      <text x={484} y={226} style={{ ...faint, fill: "var(--accent)" }}>writes state["spell"]</text>
+      <text x={20} y={110} style={faint}>spell branch</text>
+      <Box x={92} y={98} w={78} h={32} title="read_rune" />
+      <line x1="170" y1="114" x2="184" y2="114" stroke="var(--hairline-strong)" markerEnd="url(#lr-a)" />
+      <Box x={186} y={98} w={176} h={40} title="spellwright" note="Gemini · a few seconds" />
+      <line x1="362" y1="114" x2="376" y2="114" stroke="var(--hairline-strong)" markerEnd="url(#lr-a)" />
+      <Box x={378} y={98} w={96} h={32} title="spell_ready" accent />
+      <line x1={tx(READY) + 15} y1="98" x2={tx(READY) + 15} y2="76" stroke="var(--accent)" markerEnd="url(#lr-b)" />
+      <text x={484} y={118} style={{ ...faint, fill: "var(--accent)" }}>writes state["spell"]</text>
     </svg>
   );
 }
@@ -1164,43 +1146,82 @@ function CostShape() {
 /* ── step 5 ─────────────────────────────────────────────────────────────── */
 
 function ArenaGraph() {
-  const jev = "var(--accent)";
+  const fast = "var(--accent)";
+  const line = "var(--hairline-strong)";
   return (
-    <svg viewBox="0 0 600 300" role="img" aria-label="The arena workflow graph: a fast Discriminative model loop and a slow Gemini branch that reads the spell card">
-      <defs><Arrow id="ag-a" color="var(--hairline-strong)" /><Arrow id="ag-b" color={jev} /></defs>
+    <svg viewBox="0 0 600 250" role="img"
+         aria-label="The bell, enter, splits the workflow in two. The slow branch calls Gemini to read the spell card and write the spell into shared state, spell ready. The fast branch calls the Discriminative model every tick and reads that shared state. The branches never call each other; they only share state.">
+      <defs><Arrow id="ag-a" color={line} /><Arrow id="ag-b" color={fast} /></defs>
 
-      <Box x={10} y={130} w={64} h={40} title="START" />
-      <line x1="74" y1="150" x2="104" y2="150" stroke="var(--hairline-strong)" markerEnd="url(#ag-a)" />
-      <Box x={106} y={130} w={72} h={40} title="enter" note="the bell" />
-
-      {/* fan-out */}
-      <line x1="178" y1="142" x2="206" y2="62" stroke="var(--hairline-strong)" markerEnd="url(#ag-a)" />
-      <line x1="178" y1="158" x2="236" y2="212" stroke="var(--hairline-strong)" markerEnd="url(#ag-a)" />
-      <text x={150} y={100} style={faint}>fan-out</text>
+      <Box x={10} y={103} w={84} h={44} title="enter" note="the bell" />
+      <line x1="94" y1="116" x2="168" y2="48" stroke={line} markerEnd="url(#ag-a)" />
+      <line x1="94" y1="134" x2="168" y2="202" stroke={fast} markerEnd="url(#ag-b)" />
+      <text x={106} y={128} style={faint}>split</text>
 
       {/* slow branch */}
-      <text x={208} y={26} style={faint}>thread 1 · slow · seconds</text>
-      <Box x={206} y={36} w={92} h={52} title="read_rune" note="the screen, as PNG" />
-      <line x1="298" y1="62" x2="326" y2="62" stroke="var(--hairline-strong)" markerEnd="url(#ag-a)" />
-      <Box x={328} y={36} w={100} h={52} title="spellwright" note="Gemini reads it" dashed />
-      <line x1="428" y1="62" x2="456" y2="62" stroke="var(--hairline-strong)" markerEnd="url(#ag-a)" />
-      <Box x={458} y={36} w={104} h={52} title="spell_ready" note="judged · state only" />
-      <path d="M510 88 C 510 140, 450 150, 436 194" fill="none" stroke="var(--hairline-strong)" strokeDasharray="3 3" markerEnd="url(#ag-a)" />
-      <text x={470} y={140} style={faint}>state: spell</text>
+      <text x={170} y={14} style={faint}>slow branch · seconds</text>
+      <Box x={170} y={22} w={280} h={52} title="Gemini" note="reads the spell card and sings a spell" dashed />
 
-      {/* fast loop */}
-      <text x={208} y={186} style={{ ...faint, fill: jev }}>thread 2 · fast · ~100 ms per tick</text>
-      <Box x={238} y={196} w={110} h={52} title="tick" note="Discriminative model" accent />
-      <text x={236} y={288} style={{ ...faint, fill: jev }}>tick → check_spell → tick: never waits</text>
-      <path d="M348 208 C 380 160, 280 140, 256 90" fill="none" stroke={jev} markerEnd="url(#ag-b)" />
-      <text x={330} y={150} style={{ ...faint, fill: jev }}>recast</text>
+      {/* shared state */}
+      <line x1="310" y1="74" x2="310" y2="98" stroke={line} strokeDasharray="3 3" markerEnd="url(#ag-a)" />
+      <text x={318} y={90} style={faint}>writes</text>
+      <rect x={220} y={100} width={180} height={50} rx="8" fill="var(--overlay)" stroke={line} strokeDasharray="5 3" />
+      <text x={310} y={121} textAnchor="middle" style={strong}>shared state</text>
+      <text x={310} y={138} textAnchor="middle" style={mono}>spell ready?</text>
+      <line x1="310" y1="150" x2="310" y2="174" stroke={fast} strokeDasharray="3 3" markerEnd="url(#ag-b)" />
+      <text x={318} y={166} style={{ ...faint, fill: fast }}>reads, every tick</text>
 
-      <line x1="348" y1="222" x2="382" y2="222" stroke={jev} markerEnd="url(#ag-b)" />
-      <Box x={384} y={196} w={104} h={52} title="check_spell" note="ready? not yet?" accent />
-      <path d="M436 248 C 436 276, 300 276, 300 250" fill="none" stroke={jev} markerEnd="url(#ag-b)" />
-      <text x={372} y={274} textAnchor="middle" style={{ ...faint, fill: jev }}>again</text>
-      <line x1="488" y1="222" x2="520" y2="222" stroke={jev} strokeDasharray="3 3" markerEnd="url(#ag-b)" />
-      <Box x={522} y={202} w={72} h={40} title="bard" note="done" dashed />
+      {/* fast branch */}
+      <text x={170} y={244} style={{ ...faint, fill: fast }}>fast branch · about 100 ms a tick</text>
+      <Box x={170} y={176} w={280} h={52} title="Discriminative model" note="one decision every tick" accent />
+      <path d="M450 190 C 500 190, 500 214, 452 214" fill="none" stroke={fast} markerEnd="url(#ag-b)" />
+      <text x={498} y={206} style={{ ...faint, fill: fast }}>loop</text>
+    </svg>
+  );
+}
+
+/* One event loop, one thread: a branch runs until it reaches an await, then
+   the loop runs the other one. Solid is running, dashed is waiting. */
+function EventLoop() {
+  const fast = "var(--accent)";
+  const run = (x1: number, x2: number, y: number, name: string, color: string) => (
+    <g key={`${name}-${x1}`}>
+      <rect x={x1} y={y - 13} width={x2 - x1} height={26} rx="5"
+            fill={`color-mix(in srgb, ${color} 18%, transparent)`} stroke={color} />
+      <text x={(x1 + x2) / 2} y={y + 4} textAnchor="middle" style={{ ...mono, fontSize: 10, fill: "var(--fg)" }}>{name}</text>
+    </g>
+  );
+  const wait = (x1: number, x2: number, y: number, word: string, color: string) => (
+    <g key={`w-${x1}-${y}`}>
+      <line x1={x1 + 2} y1={y} x2={x2 - 4} y2={y} stroke={color} strokeDasharray="4 4" markerEnd="url(#el-a)" />
+      {word && <text x={(x1 + x2) / 2} y={y - 8} textAnchor="middle" style={faint}>{word}</text>}
+    </g>
+  );
+  const slow = "var(--fg-muted)";
+  return (
+    <svg viewBox="0 0 680 186" role="img"
+         aria-label="One event loop in one thread. The fast branch runs tick, waits at an await for the model, runs tick and check_spell, and repeats. While it waits, the loop runs the slow branch: read_rune, then a long await for Gemini of several seconds, then spell_ready. Only one runs at a time, and each runs while the other is waiting.">
+      <defs><Arrow id="el-a" color="var(--hairline-strong)" /></defs>
+      <text x={10} y={20} style={strong}>One event loop, one thread</text>
+      <text x={198} y={20} style={faint}>it switches branch at every await</text>
+
+      <text x={10} y={130} style={{ ...label, fill: fast }}>fast branch</text>
+      {run(110, 160, 126, "tick", fast)}
+      {wait(160, 250, 126, "await model", fast)}
+      {run(250, 290, 126, "tick", fast)}
+      {run(290, 368, 126, "check_spell", fast)}
+      {run(368, 408, 126, "tick", fast)}
+      {wait(408, 478, 126, "await model", fast)}
+      {run(478, 518, 126, "tick", fast)}
+      {run(518, 596, 126, "check_spell", fast)}
+      {wait(596, 664, 126, "…", fast)}
+
+      <text x={10} y={70} style={label}>slow branch</text>
+      {run(160, 244, 66, "read_rune", slow)}
+      {wait(244, 590, 66, "await Gemini · seconds", slow)}
+      {run(590, 670, 66, "spell_ready", slow)}
+
+      <text x={10} y={174} style={faint}>Solid: the branch is running. Dashed: it waits at an await, and the loop runs the other branch.</text>
     </svg>
   );
 }
@@ -1217,10 +1238,14 @@ function TickNode() {
     ["choose()", "thresholds → action", false],
     ["arena.respond", "resolves the blow", false],
   ];
+  const routeLabel = (x: number, y: number, text: string, anchor: "start" | "middle" | "end" = "middle") => (
+    <text x={x} y={y} textAnchor={anchor} style={{ ...mono, fontSize: 10.5, fill: fast }}>{text}</text>
+  );
   return (
-    <svg viewBox="0 0 680 214" role="img"
-         aria-label="One pass through tick: read whether a spell is ready, get the ogre's move from the arena, ask the Discriminative model, apply the thresholds in choose(), and let the arena resolve the blow. Then route: next to check_spell while the match goes on; recast to read_rune as well when a spell was just cast; done to summarise when someone reaches 0 HP or tick 60.">
+    <svg viewBox="0 0 680 262" role="img"
+         aria-label="One pass through tick: read whether a spell is ready, get the ogre's move from the arena, ask the Discriminative model, apply the thresholds in choose(), and let the arena resolve the blow. Then a decision with three outcomes: route next to check_spell while the match goes on; route recast and next, to read_rune and check_spell, when a spell was just cast; route done to summarise when someone reaches 0 HP or tick 60.">
       <defs><Arrow id="tn-a" color={line} /><Arrow id="tn-b" color={fast} /></defs>
+      <text x={10} y={18} style={faint}>one tick · system_one is awaited, so the slow branch keeps running</text>
       {steps.map(([title, note, accent], i) => (
         <g key={title}>
           <Box x={10 + i * 134} y={30} w={118} h={50} title={title} note={note} accent={accent} />
@@ -1229,19 +1254,24 @@ function TickNode() {
           )}
         </g>
       ))}
-      <text x={10} y={18} style={faint}>one tick</text>
-      <text x={327} y={98} textAnchor="middle" style={{ ...faint, fill: fast }}>awaited: the slow branch keeps running</text>
 
-      {/* routes */}
-      <line x1="605" y1="80" x2="605" y2="120" stroke={line} />
-      <line x1="122" y1="120" x2="605" y2="120" stroke={line} />
-      <text x={598} y={113} textAnchor="end" style={faint}>route, from the result</text>
-      <line x1="122" y1="120" x2="122" y2="146" stroke={fast} markerEnd="url(#tn-b)" />
-      <line x1="340" y1="120" x2="340" y2="146" stroke={fast} markerEnd="url(#tn-b)" />
-      <line x1="530" y1="120" x2="530" y2="146" stroke={line} markerEnd="url(#tn-a)" />
-      <Box x={22} y={148} w={200} h={50} title="next → check_spell" note="the match goes on" accent />
-      <Box x={240} y={148} w={200} h={50} title="recast → read_rune" note="a spell was cast; together with next" />
-      <Box x={458} y={148} w={144} h={50} title="done → summarise" note="0 HP, or tick 60" />
+      {/* the decision */}
+      <path d="M605 80 V 110 H 372" fill="none" stroke={line} markerEnd="url(#tn-a)" />
+      <polygon points="308,98 372,98 340,142" fill="var(--card)" stroke={fast} strokeWidth="1.5" />
+      <text x={340} y={116} textAnchor="middle" style={{ ...strong, fontSize: 13 }}>?</text>
+      <text x={300} y={112} textAnchor="end" style={faint}>match over? spell just cast?</text>
+
+      {/* the three outcomes, each with the route tick returns */}
+      <line x1="334" y1="142" x2="126" y2="198" stroke={fast} markerEnd="url(#tn-b)" />
+      <line x1="340" y1="142" x2="340" y2="198" stroke={fast} markerEnd="url(#tn-b)" />
+      <line x1="346" y1="142" x2="554" y2="198" stroke={line} markerEnd="url(#tn-a)" />
+      {routeLabel(214, 164, 'route=["next"]', "end")}
+      {routeLabel(333, 191, 'route=["recast", "next"]', "end")}
+      {routeLabel(478, 160, 'route=["done"]', "start")}
+
+      <Box x={22} y={200} w={200} h={50} title="check_spell" note="the match goes on" accent />
+      <Box x={240} y={200} w={200} h={50} title="read_rune + check_spell" note="a spell was cast; keep fighting too" />
+      <Box x={458} y={200} w={200} h={50} title="summarise" note="0 HP, or tick 60" />
     </svg>
   );
 }
@@ -1414,14 +1444,21 @@ function GraphDefinition() {
 /* ── step 6 ─────────────────────────────────────────────────────────────── */
 
 function ThreeTools() {
+  const tools: [number, string, string, boolean, boolean, string[]][] = [
+    [12, "Code", "the rule is explicit", false, false, ["free · instant", "exact"]],
+    [197, "Discriminative model", "the answer is bounded", true, false, ["~100 ms · micro-cents", "calibrated"]],
+    [382, "Language model", "the answer is prose", false, true, ["seconds · cents", "checked by the Discriminative model"]],
+  ];
   return (
-    <svg viewBox="0 0 560 150" role="img" aria-label="Code, the Discriminative model and a language model, and what each answers">
-      <Box x={12} y={30} w={165} h={80} title="Code" note="the rule is explicit" />
-      <text x={94} y={128} textAnchor="middle" style={faint}>free · instant · exact</text>
-      <Box x={197} y={30} w={165} h={80} title="Discriminative model" note="the answer is bounded" accent />
-      <text x={279} y={128} textAnchor="middle" style={faint}>~100 ms · micro-cents · calibrated</text>
-      <Box x={382} y={30} w={165} h={80} title="Language model" note="the answer is prose" dashed />
-      <text x={464} y={128} textAnchor="middle" style={faint}>seconds · cents · checked by the Discriminative model</text>
+    <svg viewBox="0 0 560 162" role="img" aria-label="Code, the Discriminative model and a language model, and what each answers">
+      {tools.map(([x, title, note, accent, dashed, lines]) => (
+        <g key={title}>
+          <Box x={x} y={22} w={165} h={80} title={title} note={note} accent={accent} dashed={dashed} />
+          {lines.map((line, k) => (
+            <text key={line} x={x + 82.5} y={122 + k * 16} textAnchor="middle" style={faint}>{line}</text>
+          ))}
+        </g>
+      ))}
     </svg>
   );
 }
@@ -1430,7 +1467,7 @@ function ThreeTools() {
 
 const FIGURES: Record<string, () => ReactNode> = {
   "two-paths": TwoPaths,
-  "long-running": LongRunning,
+  "parallel-branch": ParallelBranch,
   "conversation-to-decisions": ConversationToDecisions,
   "system-components": SystemComponents,
   "moves-and-responses": MovesAndResponses,
@@ -1455,6 +1492,7 @@ const FIGURES: Record<string, () => ReactNode> = {
   "cost-shape": CostShape,
   "arena-graph": ArenaGraph,
   "graph-definition": GraphDefinition,
+  "event-loop": EventLoop,
   "tick-node": TickNode,
   "check-spell-node": CheckSpellNode,
   "read-rune-node": ReadRuneNode,

@@ -29,6 +29,8 @@ export interface PartFull extends PartChip {
   headline: string;
   body: string;
   exercise: Exercise | null;
+  /** "Your turn" blocks placed in the reading with :::exercise id="…". */
+  exercises?: Record<string, Exercise>;
   checks: CheckCard[];
   after: AfterAction | null;
 }
@@ -55,12 +57,23 @@ export interface Task {
   /** edit: the top-level symbol in `file` to edit, hints in order, and the answer. */
   symbol?: string;
   symbols?: string[];
+  /** assemble: the code with {{slot}} lines, the pieces to drag, and what belongs in each slot. */
+  template?: string;
+  /** assemble: code already in the file, shown read-only above the template. */
+  context?: string;
+  /** terminal: show the spell card picker above it (step 6b's slow branch). */
+  cards?: boolean;
+  /** terminal: a button that shows this whole file in a pop-up. */
+  showFile?: string;
+  pieces?: { id: string; code: string; why?: string }[];
+  slots?: Record<string, { answer: string[]; one?: boolean; label?: string }>;
   hints?: string[];
   answer?: string;
   kind:
     | "console"
     | "model-setup"
     | "edit"
+    | "assemble"
     | "command"
     | "intent"
     | "app"
@@ -218,6 +231,13 @@ export const api = {
     json<CodeBlock>(`/api/code/${slug}/${taskId}/reset`, { method: "POST" }),
   stageChanges: (since: number, to: number) =>
     json<{ files: StageChange[] }>(`/api/stage/changes?since=${since}&to=${to}`),
+  branchCards: () => json<{ cards: { id: string; url: string }[]; selected: string }>("/api/branches/cards"),
+  chooseBranchCard: (card: string) =>
+    json<{ cards: { id: string; url: string }[]; selected: string }>("/api/branches/cards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ card }),
+    }),
   modelCheck: () => json<{ env: Env; message: string }>("/api/model-check", { method: "POST" }),
   modelSetupStatus: () =>
     json<{ token: string | null; state?: string; model?: string; log?: string }>("/api/model-setup"),

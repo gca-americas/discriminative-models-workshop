@@ -27,30 +27,19 @@ the spell card's answer. The Discriminative model decides every tick. Gemini rea
   per Score, rate limits that adjust with demand.
 :::
 
-:::section kicker="Cost" headline="Pricing"
-Input is $0.042 per million tokens and output is free. Latency is 70 to 500
-milliseconds end to end. TypeSafe's own workflow evaluations claim up to
-190× faster and 400× cheaper than frontier language models on decision tasks;
-treat those as the vendor's numbers, and measure your own. Independent tests
-so far find the Discriminative model competitive on reranking and simple classification, and weaker
-than tuned in-house models on large label sets.
-:::
+:::section kicker="Summary" headline="Lab summary"
+In this lab you:
 
-:::section kicker="Resources" headline="Next steps"
-- **The docs:** [docs.typesafe.ai](https://docs.typesafe.ai). The *patterns*
-  and *cookbooks* sections cover confidence-gated routing, speculative
-  fan-out, guardrails for LLMs, re-ranking and function calling.
-- **On open weights:** DiffusionGemma, Google's open diffusion model, can
-  answer Discriminative-model-style questions in one parallel pass. djev-run serves it behind
-  the Discriminative model's exact API, and `scripts/setup_gemma.sh` puts it on a GPU in your own
-  project, so the decisions never leave it.
-- **In other stacks:** Pydantic AI has `typesafe:jev-latest` as a model that
-  fills a Pydantic class one field per question. OpenRouter, Cloudflare and
-  Vercel gateways carry it too.
-- **In ADK:** the same idea works without a graph when all you want is a gate.
-  `before_model_callback` and `before_tool_callback` on a single agent can call
-  the Discriminative model and refuse, the way `choose()` refuses a shaky strike.
-- **For your coding agent:** `claude plugin marketplace add typesafe-ai/skills`
-  installs a skill that teaches Claude Code how to write these questions.
-  Expect to edit the questions it writes.
+- Chose a discriminative model, Jev or DiffusionGemma on a Compute Engine GPU
+  VM, and checked that it answers.
+- Played the arena by hand, against the clock, to learn its rules.
+- Learned how a discriminative model answers with Choice, Score and Noul
+  questions, probabilities and confidence, and how your code applies
+  thresholds to them.
+- Sent your first request, then let the model choose every move in the arena,
+  with `choose()` turning its answers into actions.
+- Built each branch of an ADK workflow on its own, with Gemini reading a spell
+  card image and the model deciding in a loop.
+- Joined them in one workflow that shares state, so the fight never waits for
+  Gemini and the spell is cast on an opening.
 :::

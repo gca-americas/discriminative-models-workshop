@@ -5,6 +5,9 @@ import { AppPanel } from "./AppPanel";
 import { InspectorPanel } from "./InspectorPanel";
 import { FileExplorer } from "./FileExplorer";
 import { EditTask } from "./EditTask";
+import { AssembleTask } from "./AssembleTask";
+import { SpellCardPicker } from "./SpellCardPicker";
+import { CodePopup } from "./CodePopup";
 import { Terminal } from "./Terminal";
 import { HelpMe } from "./HelpMe";
 import { StagedRun } from "./StagedRun";
@@ -543,6 +546,40 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
   );
 }
 
+/* Above a terminal: things to look at or choose before running it. */
+function TerminalExtras({ task, color }: { task: Task; color: string }) {
+  const [code, setCode] = useState<string | null>(null);
+
+  async function showFile() {
+    if (!task.showFile) return;
+    try {
+      const file = await api.fileRead(task.showFile);
+      setCode(file.lines ? file.lines.join("\n") : file.error ?? "could not read the file");
+    } catch {
+      setCode("could not read the file");
+    }
+  }
+
+  return (
+    <>
+      {task.cards && <SpellCardPicker color={color} />}
+      {task.showFile && (
+        <button
+          type="button"
+          onClick={showFile}
+          className="mt-3 rounded-lg border px-3 py-1.5 font-mono text-xs"
+          style={{ borderColor: "var(--hairline-strong)", color: "var(--fg-muted)" }}
+        >
+          View {task.showFile} ⤢
+        </button>
+      )}
+      {code !== null && (
+        <CodePopup title={task.showFile ?? ""} code={code} format="python" onClose={() => setCode(null)} />
+      )}
+    </>
+  );
+}
+
 function ReflectTask({ task }: { task: Task }) {
   return (
     <>
@@ -592,11 +629,83 @@ export function Exercise({
   slug,
   exercise,
   color,
+  plain = false,
 }: {
   slug: string;
   exercise: ExerciseSpec;
   color: string;
+  /** Inside a reading card: just the tasks, with no "Your turn" frame. */
+  plain?: boolean;
 }) {
+  const tasks = (
+    <ol className={plain ? "mt-4 space-y-5" : "mt-7 space-y-7"}>
+      {exercise.tasks.map((task, index) => (
+        <li key={task.id} id={`task-${task.id}`} className="flex gap-4">
+          <span
+            hidden={plain}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full border text-xs font-semibold"
+            style={{ borderColor: "var(--hairline-strong)", color: "var(--fg-muted)" }}
+          >
+            {index + 1}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[0.98rem] font-semibold">{task.title}</h3>
+            {task.kind === "intent" && <IntentTask slug={slug} task={task} color={color} />}
+            {task.kind === "command" && <CommandTask slug={slug} task={task} color={color} />}
+            {task.kind === "widget" && (
+              <>
+                {task.explain && (
+                  <p className="mt-2 text-sm" style={{ color: "var(--fg-muted)" }}>
+                    <Inline text={task.explain} />
+                  </p>
+                )}
+                <Widget id={task.widget ?? ""} />
+              </>
+            )}
+            {task.kind === "placeholder" && (
+              <div
+                className="mt-3 grid min-h-28 place-items-center rounded-2xl border border-dashed px-4 text-center text-sm"
+                style={{ borderColor: "var(--hairline-strong)", color: "var(--fg-faint)" }}
+              >
+                {task.note ?? "diagram goes here"}
+              </div>
+            )}
+            {task.kind === "files" && (
+              <FileExplorer
+                start={task.start}
+                open={task.open}
+                explain={task.explain}
+                slug={slug}
+                task={task}
+                color={color}
+              />
+            )}
+            {task.kind === "terminal" && (
+              <>
+                {(task.cards || task.showFile) && (
+                  <TerminalExtras task={task} color={color} />
+                )}
+                <Terminal explain={task.explain} hint={task.hint} expect={task.expect} />
+              </>
+            )}
+            {task.kind === "app" && (
+              <AppPanel title={task.appTitle} explain={task.explain} color={color} mode={task.appMode} />
+            )}
+            {task.kind === "inspector" && (
+              <InspectorPanel title={task.appTitle} explain={task.explain} color={color} />
+            )}
+            {task.kind === "console" && <ConsoleTask task={task} color={color} />}
+            {task.kind === "model-setup" && <ModelSetupTask task={task} color={color} />}
+            {task.kind === "reflect" && <ReflectTask task={task} />}
+            {task.kind === "edit" && <EditTask slug={slug} task={task} color={color} />}
+            {task.kind === "assemble" && <AssembleTask slug={slug} task={task} color={color} />}
+            {task.kind === "draw" && <PlaceholderTask task={task} kind={task.kind} />}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+  if (plain) return <div className="mt-2">{tasks}</div>;
   return (
     <section className="mt-14">
       <div
@@ -618,65 +727,7 @@ export function Exercise({
           </div>
         )}
 
-        <ol className="mt-7 space-y-7">
-          {exercise.tasks.map((task, index) => (
-            <li key={task.id} id={`task-${task.id}`} className="flex gap-4">
-              <span
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full border text-xs font-semibold"
-                style={{ borderColor: "var(--hairline-strong)", color: "var(--fg-muted)" }}
-              >
-                {index + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-[0.98rem] font-semibold">{task.title}</h3>
-                {task.kind === "intent" && <IntentTask slug={slug} task={task} color={color} />}
-                {task.kind === "command" && <CommandTask slug={slug} task={task} color={color} />}
-                {task.kind === "widget" && (
-                  <>
-                    {task.explain && (
-                      <p className="mt-2 text-sm" style={{ color: "var(--fg-muted)" }}>
-                        <Inline text={task.explain} />
-                      </p>
-                    )}
-                    <Widget id={task.widget ?? ""} />
-                  </>
-                )}
-                {task.kind === "placeholder" && (
-                  <div
-                    className="mt-3 grid min-h-28 place-items-center rounded-2xl border border-dashed px-4 text-center text-sm"
-                    style={{ borderColor: "var(--hairline-strong)", color: "var(--fg-faint)" }}
-                  >
-                    {task.note ?? "diagram goes here"}
-                  </div>
-                )}
-                {task.kind === "files" && (
-                  <FileExplorer
-                    start={task.start}
-                    open={task.open}
-                    explain={task.explain}
-                    slug={slug}
-                    task={task}
-                    color={color}
-                  />
-                )}
-                {task.kind === "terminal" && (
-                  <Terminal explain={task.explain} hint={task.hint} expect={task.expect} />
-                )}
-                {task.kind === "app" && (
-                  <AppPanel title={task.appTitle} explain={task.explain} color={color} mode={task.appMode} />
-                )}
-                {task.kind === "inspector" && (
-                  <InspectorPanel title={task.appTitle} explain={task.explain} color={color} />
-                )}
-                {task.kind === "console" && <ConsoleTask task={task} color={color} />}
-                {task.kind === "model-setup" && <ModelSetupTask task={task} color={color} />}
-                {task.kind === "reflect" && <ReflectTask task={task} />}
-                {task.kind === "edit" && <EditTask slug={slug} task={task} color={color} />}
-                {task.kind === "draw" && <PlaceholderTask task={task} kind={task.kind} />}
-              </div>
-            </li>
-          ))}
-        </ol>
+        {tasks}
       </div>
     </section>
   );

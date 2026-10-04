@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 
 import { api } from "../lib/api";
 import { parseBlocks, type Block } from "../lib/blocks";
 import { Figure } from "../illustrations";
+import { Exercise } from "./Exercise";
+import type { Exercise as ExerciseSpec } from "../lib/api";
 
 /* Panels, following the workbench house style: a full hairline border on a
    translucent panel, never a coloured edge. A callout is distinguished by its
@@ -164,10 +166,25 @@ function FileReveal({ path, label }: { path: string; label: string }) {
   );
 }
 
+/* What an inline :::exercise needs from the page around it. */
+const InlineExercises = createContext<{ slug: string; color: string; exercises: Record<string, ExerciseSpec> }>({
+  slug: "", color: "var(--accent)", exercises: {},
+});
+
+function InlineExercise({ id, plain }: { id: string; plain: boolean }) {
+  const { slug, color, exercises } = useContext(InlineExercises);
+  const exercise = exercises[id];
+  if (!exercise) return null;
+  return <Exercise slug={slug} exercise={exercise} color={color} plain={plain} />;
+}
+
 function Blocks({ blocks }: { blocks: Block[] }) {
   return (
     <>
       {blocks.map((block, index) => {
+        if (block.kind === "exercise") {
+          return <InlineExercise key={index} id={block.id} plain={block.plain} />;
+        }
         if (block.kind === "figure") {
           return <Figure key={index} id={block.id} caption={block.caption} src={block.src} />;
         }
@@ -205,7 +222,16 @@ function Blocks({ blocks }: { blocks: Block[] }) {
 }
 
 /** A part's teaching content: markdown, section panels, callouts, figures. */
-export function Content({ markdown }: { markdown: string }) {
+export function Content({ markdown, slug = "", color = "var(--accent)", exercises = {} }: {
+  markdown: string;
+  slug?: string;
+  color?: string;
+  exercises?: Record<string, ExerciseSpec>;
+}) {
   const blocks = useMemo(() => parseBlocks(markdown), [markdown]);
-  return <Blocks blocks={blocks} />;
+  return (
+    <InlineExercises.Provider value={{ slug, color, exercises }}>
+      <Blocks blocks={blocks} />
+    </InlineExercises.Provider>
+  );
 }

@@ -3,8 +3,8 @@
 #
 # It installs the workbench, enables the Google Cloud APIs the workshop uses
 # (Compute Engine, IAP and Vertex AI), and sets up Gemini for step 6's spell
-# reading. The decision model is chosen separately, in step 2 of the workbench
-# or with scripts/setup_model.sh.
+# reading, with a Gemini model the project can call. The decision model is
+# chosen separately, in step 2 of the workbench or with scripts/setup_model.sh.
 #
 #   scripts/setup.sh            asks
 #   scripts/setup.sh --yes      accept the defaults, never prompt
@@ -78,6 +78,20 @@ if [ -z "$(get_env GOOGLE_API_KEY)" ] && [ -z "$(get_env GOOGLE_GENAI_USE_VERTEX
     echo "Gemini needs an AI Studio key for step 6: https://aistudio.google.com/apikey"
     KEY="$(ask_secret 'Paste your GOOGLE_API_KEY (Enter to add it to .env later):')"
     [ -n "$KEY" ] && set_env GOOGLE_API_KEY "$KEY"
+  fi
+fi
+
+# A Gemini model name this project can call. The "-latest" alias is not in every
+# Vertex AI project, so try the configured model and fall back to the newest
+# Flash model the project lists. Saved as JEV101_GEMINI_MODEL, which the arena
+# workflow and the step 6 branches read.
+if [ -n "$(get_env GOOGLE_API_KEY)" ] || [ -n "$(get_env GOOGLE_GENAI_USE_VERTEXAI)" ]; then
+  echo "· checking which Gemini model this project can call"
+  if GEMINI_NAME="$(.venv/bin/python scripts/pick_gemini_model.py < /dev/null)"; then
+    set_env JEV101_GEMINI_MODEL "$GEMINI_NAME"
+    echo "  using $GEMINI_NAME"
+  else
+    echo "  no Gemini model answered; step 6 needs one. Run python3 scripts/pick_gemini_model.py later."
   fi
 fi
 

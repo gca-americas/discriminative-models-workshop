@@ -100,6 +100,9 @@ async def student_app(request: Request, path: str = "") -> Response:
 # Images a step shows with :::figure src="…": content/images/<file>.
 (config.ROOT / "content" / "images").mkdir(parents=True, exist_ok=True)
 app.mount("/content-images", StaticFiles(directory=config.ROOT / "content" / "images"), name="content-images")
+# The spell cards the step 6b slow branch can read.
+if (config.ROOT / "branches" / "cards").is_dir():
+    app.mount("/branch-cards", StaticFiles(directory=config.ROOT / "branches" / "cards"), name="branch-cards")
 
 if config.WEB_DIST.exists():
     app.mount("/assets", StaticFiles(directory=config.WEB_DIST / "assets"), name="assets")

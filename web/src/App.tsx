@@ -133,7 +133,7 @@ function StepPage({ course }: { course: CoursePayload }) {
 
             </div>
 
-            <Content markdown={part.body} />
+            <Content markdown={part.body} slug={step.slug} color={accent} exercises={part.exercises ?? {}} />
 
             {part.exercise && (
               <Exercise slug={step.slug} exercise={part.exercise} color={accent} />

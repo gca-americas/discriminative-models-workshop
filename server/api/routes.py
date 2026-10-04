@@ -149,7 +149,7 @@ def model_setup_status() -> dict[str, Any]:
 
 def _edit_task(slug: str, task_id: str) -> dict[str, Any]:
     task = content.task_spec(slug, task_id)
-    if not task or task.get("kind") != "edit":
+    if not task or task.get("kind") not in {"edit", "assemble"}:
         raise HTTPException(404, f"no edit task {task_id} in {slug}")
     return task
 
@@ -176,6 +176,39 @@ def code_reset(slug: str, task_id: str) -> dict[str, Any]:
         return {"ok": True, **code.reset(_edit_task(slug, task_id))}
     except code.EditError as error:
         return {"ok": False, "error": str(error)}
+
+
+# ── the spell card the slow branch reads (step 6b) ──────────────────────────
+
+BRANCHES = config.ROOT / "branches"
+
+
+def _cards() -> list[str]:
+    return sorted(p.stem for p in (BRANCHES / "cards").glob("card*.png"))
+
+
+def _selected_card() -> str:
+    current = (BRANCHES / "spell_card.json").read_text() if (BRANCHES / "spell_card.json").is_file() else ""
+    return next((card for card in _cards()
+                 if (BRANCHES / "cards" / f"{card}.json").read_text() == current), "")
+
+
+@router.get("/branches/cards")
+def branch_cards() -> dict[str, Any]:
+    return {"cards": [{"id": card, "url": f"/branch-cards/{card}.png"} for card in _cards()],
+            "selected": _selected_card()}
+
+
+@router.post("/branches/cards")
+def choose_card(card: str = Body(..., embed=True)) -> dict[str, Any]:
+    """The card the slow branch sends to Gemini: copied to spell_card.png, with
+    its answer to spell_card.json, which the script reads and Gemini never sees."""
+    if card not in _cards():
+        raise HTTPException(404, f"no card {card}")
+    import shutil
+    shutil.copyfile(BRANCHES / "cards" / f"{card}.png", BRANCHES / "spell_card.png")
+    shutil.copyfile(BRANCHES / "cards" / f"{card}.json", BRANCHES / "spell_card.json")
+    return branch_cards()
 
 
 @router.post("/intent/{slug}/{task_id}")

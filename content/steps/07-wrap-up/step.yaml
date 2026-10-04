@@ -4,7 +4,7 @@ kicker: Step 7
 part: takeaway
 minutes: 3
 color: rose
-summary: When to use a discriminative model, its limitations and cost, and further resources.
+summary: When to use a discriminative model, its limitations, and a summary of the lab.
 headline: Choose between code, a discriminative model, and a language model
 exercise:
   title: Identify a use case

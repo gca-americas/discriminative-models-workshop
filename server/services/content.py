@@ -38,6 +38,8 @@ class Part:
     exercise: dict[str, Any] | None
     checks: list[dict[str, Any]] = field(default_factory=list)
     after: dict[str, Any] | None = None
+    # Exercises placed inside the reading with :::exercise id="…", by id.
+    exercises: dict[str, Any] = field(default_factory=dict)
 
     def chip(self) -> dict[str, Any]:
         return {"id": self.id, "label": self.label,
@@ -53,6 +55,7 @@ class Part:
             "exercise": self.exercise,
             "checks": [_public_check(c) for c in self.checks],
             "after": self.after,
+            "exercises": self.exercises,
         }
 
 
@@ -132,6 +135,7 @@ def _parse(directory: Path) -> Step | None:
                 exercise=part.get("exercise"),
                 checks=part.get("checks") or [],
                 after=part.get("after"),
+                exercises=part.get("exercises") or {},
             )
             for index, part in enumerate(raw_parts)
         ]
@@ -197,7 +201,9 @@ def task_spec(slug: str, task_id: str) -> dict[str, Any] | None:
     if not found:
         return None
     for part in found.parts:
-        for task in (part.exercise or {}).get("tasks", []):
-            if task.get("id") == task_id:
-                return task
+        exercises = [part.exercise or {}, *part.exercises.values()]
+        for exercise in exercises:
+            for task in exercise.get("tasks", []):
+                if task.get("id") == task_id:
+                    return task
     return None
