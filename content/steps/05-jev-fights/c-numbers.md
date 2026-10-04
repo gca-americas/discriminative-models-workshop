@@ -6,8 +6,8 @@ message before a person or a language model sees it.
 :::
 
 :::section kicker="Cost" headline="Input-based pricing"
-The totals line ends with input tokens and dollars. A whole fight, sixty
-decisions with three questions each, costs well under a tenth of a cent.
+A whole fight, sixty decisions with three questions each, costs well under a
+tenth of a cent.
 Output tokens are zero because nothing was generated.
 
 :::figure id="cost-shape" caption="A language model's cost grows with the length of what it writes. The Discriminative model's only grows with what it reads."
@@ -20,10 +20,9 @@ dashboard. TypeSafe calls this *speculative fan-out*.
 :::
 
 :::section kicker="Decision logic" headline="Combine confidence and danger"
-Look for a `*` in the "jev says" column. That tick, the Discriminative model's confidence in its
-response was under 0.40 while the danger score said a heavy hit was coming,
-and `choose()` overrode it with a dodge. A dodge is rarely the best answer,
-but it is rarely the worst.
+When the Discriminative model's confidence in its response is under 0.40 and
+the danger score says a heavy hit is coming, `choose()` overrides it with a
+dodge. A dodge is rarely the best answer, but it is rarely the worst.
 
 :::note
 Pick thresholds from the cost of each mistake, not from a round number, and

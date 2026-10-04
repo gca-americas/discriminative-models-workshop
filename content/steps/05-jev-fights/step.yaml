@@ -162,26 +162,3 @@ parts:
     label: Performance
     headline: Latency and cost
     body: c-numbers.md
-    exercise:
-      title: Run a match from the terminal
-      intro: >
-        The app shows one tick at a time. This runs a fight to the end, one
-        line per tick, and prints what it took.
-      tasks:
-        - kind: terminal
-          id: batch
-          title: Run the terminal version
-          expect:
-            - python3 scripts/fight.py
-            - python3 scripts/fight.py --seed 7
-          explain: >
-            One line per tick, then the totals. `--seed` makes the ogre repeat
-            itself, so two runs can be compared. The script imports the rules
-            and the questions from the app, so there is one copy to review.
-        - kind: reflect
-          id: the-rule
-          title: Review the fallback rule
-          prompt: >
-            Find a tick where the Discriminative model's confidence was low. What did the code do,
-            and was it right? Now imagine the rule were "if in doubt, strike".
-            Which telegraphs would that have gone wrong on?
