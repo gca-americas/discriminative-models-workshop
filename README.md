@@ -169,7 +169,7 @@ You need `uv`, `node`, `gcloud`, and these settings in a `.env` at the root.
 `setup_codelab.sh` writes the Gemini lines, and step 2 writes the model's:
 
 ```
-TYPESAFE_API_KEY=ts-...                # Jev (steps 2–6), or DiffusionGemma / rehearsal settings
+TYPESAFE_API_KEY=apikey_...                # Jev (steps 2–6), or DiffusionGemma / rehearsal settings
 GOOGLE_GENAI_USE_VERTEXAI=1            # Gemini on Vertex AI (step 6), no API key
 GOOGLE_CLOUD_PROJECT=your-project
 GOOGLE_CLOUD_LOCATION=global

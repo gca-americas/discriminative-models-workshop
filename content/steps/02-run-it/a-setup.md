@@ -17,7 +17,7 @@ The SDK looks for the key in the
 a `.env` file at the root, so one line there is enough:
 
 ```
-TYPESAFE_API_KEY=ts-...
+TYPESAFE_API_KEY=apikey_...
 ```
 :::
 

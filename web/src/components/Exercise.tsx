@@ -102,6 +102,23 @@ function useRunStream() {
     [],
   );
 
+  // A proxy that buffers the stream (Cloud Shell's web preview can) may never
+  // deliver run.done, so while a run is going, also ask for its status.
+  useEffect(() => {
+    if (state !== "running") return;
+    const timer = setInterval(() => {
+      const current = token.current;
+      if (!current) return;
+      api.runStatus(current).then((status) => {
+        if (current !== token.current || status.state === "running") return;
+        setState("done");
+        setCode(status.code ?? null);
+        setLines(status.log.split("\n").filter(Boolean));
+      }).catch(() => {});
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [state]);
+
   const begin = useCallback((fresh: string) => {
     token.current = fresh;
     setLines([]);

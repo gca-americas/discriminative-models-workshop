@@ -1,6 +1,6 @@
 """Check a TypeSafe API key with one real request to api.typesafe.ai.
 
-    TYPESAFE_API_KEY=ts-... python3 scripts/verify_jev_key.py
+    TYPESAFE_API_KEY=apikey_... python3 scripts/verify_jev_key.py
 
 The key comes from the environment, or from .env at the root of the workshop,
 never from the command line, so it does not show up in the process list.
