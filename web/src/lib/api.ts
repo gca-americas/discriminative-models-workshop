@@ -66,7 +66,7 @@ export interface Task {
   /** terminal: a button that shows this whole file in a pop-up. */
   showFile?: string;
   pieces?: { id: string; code: string; why?: string }[];
-  slots?: Record<string, { answer: string[]; one?: boolean; label?: string }>;
+  slots?: Record<string, { answer: string[]; one?: boolean; any?: boolean; label?: string }>;
   hints?: string[];
   answer?: string;
   kind:

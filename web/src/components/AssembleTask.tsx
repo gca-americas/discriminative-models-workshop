@@ -20,7 +20,8 @@ const SLOT_LINE = /^(\s*)\{\{(\w+)\}\}\s*$/;      // a slot on a line of its own
 const SLOT_INLINE = /\{\{(\w+)\}\}/;                // a slot inside a line: one piece
 
 type Piece = { id: string; code: string; why?: string };
-type Slot = { answer: string[]; one?: boolean; label?: string };   // label: what goes here
+// label: what goes here. any: one piece, and any piece in `answer` is right.
+type Slot = { answer: string[]; one?: boolean; any?: boolean; label?: string };
 
 function assemble(template: string, placed: Record<string, string[]>, pieces: Piece[]): string {
   const byId = Object.fromEntries(pieces.map((piece) => [piece.id, piece]));
@@ -46,7 +47,12 @@ export function AssembleTask({ slug, task, color }: { slug: string; task: Task; 
   const pieces: Piece[] = task.pieces ?? [];
   const slots: Record<string, Slot> = task.slots ?? {};
   const slotIds = Object.keys(slots);
-  const answer = Object.fromEntries(slotIds.map((id) => [id, slots[id].answer]));
+  // The answer to place: the first right piece of an `any` slot.
+  const answer = Object.fromEntries(slotIds.map((id) => [id, slots[id].any ? slots[id].answer.slice(0, 1) : slots[id].answer]));
+  // Every right way to fill the slots, to recognise a block already saved.
+  const answers = slotIds.reduce<Record<string, string[]>[]>((ways, id) =>
+    ways.flatMap((way) => (slots[id].any ? slots[id].answer.map((piece) => [piece]) : [slots[id].answer])
+      .map((ids) => ({ ...way, [id]: ids }))), [{}]);
 
   const [placed, setPlaced] = useState<Record<string, string[]>>(() => Object.fromEntries(slotIds.map((id) => [id, []])));
   const [target, setTarget] = useState(slotIds[0] ?? "");
@@ -59,8 +65,9 @@ export function AssembleTask({ slug, task, color }: { slug: string; task: Task; 
   // A block already saved correctly shows as assembled.
   useEffect(() => {
     api.codeRead(slug, task.id).then((block) => {
-      if (block.ok && block.content?.trimEnd() === assemble(template, answer, pieces)) {
-        setPlaced(answer);
+      const saved = answers.find((way) => block.ok && block.content?.trimEnd() === assemble(template, way, pieces));
+      if (saved) {
+        setPlaced(saved);
         setStatus({ ok: true, message: "Already assembled and saved." });
       }
     }).catch(() => {});
@@ -74,7 +81,7 @@ export function AssembleTask({ slug, task, color }: { slug: string; task: Task; 
     setStatus(null);
     setPlaced((current) => {
       const next = Object.fromEntries(Object.entries(current).map(([key, ids]) => [key, ids.filter((x) => x !== id)]));
-      next[slot] = slots[slot]?.one ? [id] : [...(next[slot] ?? []), id];
+      next[slot] = slots[slot]?.one || slots[slot]?.any ? [id] : [...(next[slot] ?? []), id];
       return next;
     });
   }, [slots]);
@@ -89,11 +96,15 @@ export function AssembleTask({ slug, task, color }: { slug: string; task: Task; 
     const problems: string[] = [];
     let missing = 0;
     for (const id of slotIds) {
-      const want = new Set(answer[id]);
+      const want = new Set(slots[id].answer);
       const got = placed[id] ?? [];
       const wrong = got.filter((x) => !want.has(x));
       for (const piece of wrong) {
         problems.push(byId[piece]?.why || `\`${byId[piece]?.code.trim()}\` does not belong here.`);
+      }
+      if (slots[id]?.any) {
+        if (!got.length) missing += 1;
+        continue;
       }
       // A one-piece slot holding a wrong piece is already explained above.
       if (!(slots[id]?.one && wrong.length)) missing += answer[id].filter((x) => !got.includes(x)).length;
@@ -256,7 +267,7 @@ export function AssembleTask({ slug, task, color }: { slug: string; task: Task; 
               >
                 {here.length === 0 && (
                   <span className="font-sans text-xs" style={{ color: "var(--fg-faint)" }}>
-                    Drag {slots[id]?.one ? "a piece" : "pieces"} here{slots[id]?.label ? `: ${slots[id].label}` : ""}
+                    Drag {slots[id]?.one || slots[id]?.any ? "a piece" : "pieces"} here{slots[id]?.label ? `: ${slots[id].label}` : ""}
                   </span>
                 )}
                 {here.map((pieceId) => {

@@ -138,6 +138,9 @@ unset_env() {       # unset_env KEY: remove its line
 set_env GOOGLE_GENAI_USE_VERTEXAI 1
 set_env GOOGLE_CLOUD_PROJECT "$PROJECT"
 set_env GOOGLE_CLOUD_LOCATION global
+# Vertex AI bills user credentials to a quota project. The Python clients read
+# this one, so .env alone is enough even if the credentials name another project.
+set_env GOOGLE_CLOUD_QUOTA_PROJECT "$PROJECT"
 # Gemini goes through Vertex AI only. An AI Studio key left in .env would be a
 # second, competing way in, so it goes (.env.bak still has it).
 for key in GOOGLE_API_KEY GEMINI_API_KEY; do
@@ -154,6 +157,23 @@ if ! gcloud auth application-default print-access-token >/dev/null 2>&1 < /dev/n
     warn "no application default credentials, so Vertex AI cannot be called yet. Run:"
     warn "  gcloud auth application-default login"
     warn "then re-run ./setup_codelab.sh"
+else
+    # Credentials from `gcloud auth application-default login` need a quota
+    # project, or Vertex AI answers 403 PERMISSION_DENIED. Cloud Shell's
+    # credentials have no file and need none.
+    ADC_FILE="${CLOUDSDK_CONFIG:-$HOME/.config/gcloud}/application_default_credentials.json"
+    if [ -f "$ADC_FILE" ]; then
+        QUOTA="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("quota_project_id", ""))' "$ADC_FILE" 2>/dev/null || true)"
+        if [ "$QUOTA" = "$PROJECT" ]; then
+            tick "application default credentials bill to $PROJECT"
+        elif gcloud auth application-default set-quota-project "$PROJECT" >/dev/null 2>&1 < /dev/null; then
+            tick "application default credentials now bill to $PROJECT (was: ${QUOTA:-none})"
+        else
+            warn "could not set $PROJECT as the quota project of your application default credentials."
+            warn "  .env sets GOOGLE_CLOUD_QUOTA_PROJECT, which the workshop's Python code uses."
+            warn "  To fix it for other tools too:  gcloud auth application-default set-quota-project $PROJECT"
+        fi
+    fi
 fi
 info "the decision model's settings in .env are left as they are; step 2 sets them"
 

@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b --noCheck && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "figures": "NODE_PATH=$PWD/node_modules esbuild ../slides/render-figures.tsx --bundle --platform=node --format=cjs --jsx=automatic --log-level=warning --outfile=../slides/.render.cjs && node ../slides/.render.cjs > ../slides/.figures.json && ../.venv/bin/python ../slides/make_appscript.py ../slides/.figures.json"
   },
   "dependencies": {
     "marked": "^15.0.0",

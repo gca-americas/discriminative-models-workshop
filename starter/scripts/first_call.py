@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 from jev_common import cost_line, load_env, jev_client  # noqa: E402
 
-TELEGRAPH = ""  # TODO: TELEGRAPH - describe, in your own words, what the ogre just did
+TELEGRAPH = ""  # TODO: TELEGRAPH - what the ogre just did, assembled in step 5a
 
 # The five responses, and when each one is right. A choice question's criteria.
 RESPONSES = {

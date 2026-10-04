@@ -1534,7 +1534,7 @@ function ThreeTools() {
 
 /* ── registry ───────────────────────────────────────────────────────────── */
 
-const FIGURES: Record<string, () => ReactNode> = {
+export const FIGURES: Record<string, () => ReactNode> = {
   "two-paths": TwoPaths,
   "parallel-branch": ParallelBranch,
   "conversation-to-decisions": ConversationToDecisions,

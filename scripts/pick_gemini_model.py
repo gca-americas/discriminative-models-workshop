@@ -48,12 +48,13 @@ def client():
     return genai.Client(api_key=key) if key else None
 
 
-def answers(gemini, model: str) -> bool:
+def answers(gemini, model: str) -> str:
+    """Empty when the model answered; otherwise why it did not."""
     try:
         gemini.models.generate_content(model=model, contents="Reply with one word: ready")
-        return True
-    except Exception:                              # not found, no access, quota, …
-        return False
+        return ""
+    except Exception as failure:                   # not found, no access, quota, …
+        return str(failure)[:300] or type(failure).__name__
 
 
 def candidates(gemini) -> list[str]:
@@ -76,9 +77,14 @@ def main() -> int:
         return 2
 
     configured = os.environ.get("JEV101_GEMINI_MODEL") or DEFAULT
-    if answers(gemini, configured):
+    why = answers(gemini, configured)
+    if not why:
         print(configured)
         return 0
+    if "PERMISSION_DENIED" in why or "403" in why[:20]:
+        # No access is not a missing model: another model will not answer either.
+        print(f"Gemini refused the call: {why}", file=sys.stderr)
+        return 1
     print(f"{configured} is not available here; looking for another Flash model.", file=sys.stderr)
     try:
         options = candidates(gemini)
@@ -86,7 +92,7 @@ def main() -> int:
         print(f"Could not list the models: {str(failure)[:200]}", file=sys.stderr)
         return 1
     for name in options:
-        if answers(gemini, name):
+        if not answers(gemini, name):
             print(name)
             return 0
     print("No Flash model answered. Check the project's access to Gemini.", file=sys.stderr)

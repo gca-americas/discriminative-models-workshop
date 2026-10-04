@@ -14,7 +14,7 @@ parts:
     exercise:
       title: Make a request
       intro: >
-        Read the script, fill in the request, then run it and read what comes
+        Read the script, assemble the request, then run it and read what comes
         back.
       tasks:
         - kind: files
@@ -27,32 +27,21 @@ parts:
           explain: >
             Near the top are `TELEGRAPH`, what the ogre just did, `RESPONSES`,
             the five responses, and `REQUEST`, what the script sends. Two
-            parts are missing, each marked `TODO`. You fill them in next. The
+            parts are missing, each marked `TODO`. You assemble them next. The
             rest of the script builds the SDK's questions from `REQUEST` and
             prints the answers.
-        - kind: edit
+        - kind: assemble
           id: fill-request
-          title: Fill in the request
+          title: Assemble the request
           file: scripts/first_call.py
           symbols: [TELEGRAPH, REQUEST]
           explain: >
-            Replace both `TODO`s below. First, set `TELEGRAPH` to what the
-            ogre just did, in your own words, for example that it staggers off
-            balance with its guard open. Then, in `REQUEST`'s `questions`, add
-            `"response"`: a choice question with three keys, `"type"`,
-            `"instructions"` and `"criteria"`. Its criteria are `RESPONSES`.
-            Save when you are done.
-          hints:
-            - >
-              `TELEGRAPH` is a string. Describe one move, such as
-              `"The ogre staggers, off balance, its guard wide open."`.
-              `REQUEST` already sends it as the telegraph.
-            - >
-              A choice question has the same shape as `"exposed"`, with
-              `"type": "choice"` and one more key, `"criteria"`. Use the
-              variable without quotes: `"criteria": RESPONSES`.
-          answer: |
-            TELEGRAPH = "The ogre staggers, off balance, its guard wide open."
+            Fill both slots below. First, drag in what the ogre just did as
+            `TELEGRAPH`. Any of the moves works. Then build the `"response"`
+            question: its type, and the criteria the model chooses from. Check
+            and save when you are done.
+          template: |
+            TELEGRAPH = {{telegraph}}
 
             # The five responses, and when each one is right. A choice question's criteria.
             RESPONSES = {
@@ -72,9 +61,9 @@ parts:
                 "model": "jev-latest",
                 "questions": {
                     "response": {
-                        "type": "choice",
+                        {{kind}}
                         "instructions": "The opponent has just done this. What is the right response?",
-                        "criteria": RESPONSES,
+                        {{criteria}}
                     },
                     "exposed": {
                         "type": "noul",
@@ -82,6 +71,64 @@ parts:
                     },
                 },
             }
+          slots:
+            telegraph:
+              answer: [staggers, overhead, charge, sweep]
+              any: true
+              label: what the ogre just did
+            kind:
+              answer: [choice]
+              one: true
+              label: the kind of question
+            criteria:
+              answer: [criteria]
+              one: true
+              label: the options the model chooses from
+          pieces:
+            - id: staggers
+              code: '"The ogre staggers, off balance, its guard wide open."'
+            - id: overhead
+              code: '"The ogre raises its club high over its head."'
+            - id: charge
+              code: '"The ogre lowers its shoulder and charges."'
+            - id: sweep
+              code: '"The ogre crouches and swings its club at your legs."'
+            - id: answer
+              code: '"Strike now, while its guard is open."'
+              why: >
+                That is a response, the thing the model decides. `TELEGRAPH`
+                is what the ogre did, so the model can judge it.
+            - id: choice
+              code: '"type": "choice",'
+            - id: noul
+              code: '"type": "noul",'
+              why: >
+                A Noul question asks yes or no and answers with a probability.
+                Picking one of five responses is a Choice.
+            - id: score
+              code: '"type": "score",'
+              why: >
+                A Score question rates something on a scale. Picking one of
+                five responses is a Choice.
+            - id: criteria
+              code: '"criteria": RESPONSES,'
+            - id: quoted
+              code: '"criteria": "RESPONSES",'
+              why: >
+                In quotes, `"RESPONSES"` is the word itself, not the dict of
+                five responses. Use the variable without quotes.
+            - id: telegraph-criteria
+              code: '"criteria": TELEGRAPH,'
+              why: >
+                The telegraph is already in `state`. The criteria are the
+                options to choose from: the five `RESPONSES`.
+          hints:
+            - >
+              `TELEGRAPH` describes the ogre, not you. The model reads it
+              and picks your response.
+            - >
+              Picking one of several options is a `choice` question, and its
+              criteria are the options: `RESPONSES`, without quotes.
         - kind: terminal
           id: run
           title: Run the request
@@ -90,8 +137,9 @@ parts:
           explain: >
             Run `python3 scripts/first_call.py`. It prints the request it
             sent, the response as it came back, then one line per answer, such
-            as `response → strike` and `exposed → 0.97`. Change `TELEGRAPH`,
-            save, and run it again to see the answers move.
+            as `response → strike` and `exposed → 0.97`. Drag another move into
+            `TELEGRAPH`, check and save, and run it again to see the answers
+            move.
     checks:
       - id: first-call
         label: The request has a telegraph and a response question, and the model answered
@@ -99,7 +147,7 @@ parts:
         assert: contains
         value: "response →"
         hint: >
-          No `response →` line means a TODO is still open: fill in
+          No `response →` line means a TODO is still open: assemble
           `TELEGRAPH` and the response question above, and save. If the call fails, the
           script prints the error. A 401 means the Jev key is wrong. A connection error means the model is not answering:
           click the model light at the top right to check it.

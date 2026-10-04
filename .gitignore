@@ -18,3 +18,7 @@ app/reflex.py
 app/mode_workflow.py
 app/static/modes/
 .env.before
+
+# slides/: build files from npm run figures
+slides/.render.cjs
+slides/.figures.json
