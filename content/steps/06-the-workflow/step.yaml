@@ -280,13 +280,13 @@ parts:
       hint: Run ./setup_codelab.sh again. It points Gemini at Vertex AI in your project.
     - id: arena-runs
       label: Workflow completed a match
-      probe: curl -s http://127.0.0.1:$APP_PORT/api/workflow
-      assert: contains
-      value: spells cast
-      hint: Press Start in the arena app above and let the match finish; this reads
-        the end of its log. The fight needs both the Discriminative model and Gemini.
-        If it stops early, check the model light at the top right, and the Gemini
-        check in the Gemini access card above.
+      probe: curl -s http://127.0.0.1:$APP_PORT/api/fight
+      assert: matches
+      value: '"mode": "workflow".*"over": true'
+      hint: Press Start in the arena app above, in Workflow fights, and let the match
+        end. This reads the fight on the arena's screen. The fight needs both the
+        Discriminative model and Gemini. If it stops early, check the model light at
+        the top right, and the Gemini check in the Gemini access card above.
     exercises:
       gemini:
         title: Verify Gemini access
