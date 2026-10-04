@@ -18,6 +18,32 @@ import { Inline } from "./Inline";
 const CODE = "font-mono text-[0.8rem] leading-[1.6]";
 const SLOT_LINE = /^(\s*)\{\{(\w+)\}\}\s*$/;      // a slot on a line of its own
 const SLOT_INLINE = /\{\{(\w+)\}\}/;                // a slot inside a line: one piece
+// Lines between `{{fold LABEL}}` and `{{/fold}}` are written to the file but
+// shown folded, between two code blocks, so a long template fits on screen.
+const FOLD_START = /^\s*\{\{fold\s+(.+?)\}\}\s*$/;
+const FOLD_END = /^\s*\{\{\/fold\}\}\s*$/;
+
+function shuffle<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+type Segment = { fold: string | null; lines: { text: string; index: number }[] };
+
+function segments(template: string): Segment[] {
+  const out: Segment[] = [{ fold: null, lines: [] }];
+  template.trimEnd().split("\n").forEach((text, index) => {
+    const start = FOLD_START.exec(text);
+    if (start) out.push({ fold: start[1], lines: [] });
+    else if (FOLD_END.test(text)) out.push({ fold: null, lines: [] });
+    else out[out.length - 1].lines.push({ text, index });
+  });
+  return out.filter((segment) => segment.lines.length);
+}
 
 type Piece = { id: string; code: string; why?: string };
 // label: what goes here. any: one piece, and any piece in `answer` is right.
@@ -28,6 +54,7 @@ function assemble(template: string, placed: Record<string, string[]>, pieces: Pi
   return template
     .trimEnd()
     .split("\n")
+    .filter((line) => !FOLD_START.test(line) && !FOLD_END.test(line))
     .flatMap((line) => {
       const slot = SLOT_LINE.exec(line);
       if (slot) {
@@ -45,6 +72,9 @@ function assemble(template: string, placed: Record<string, string[]>, pieces: Pi
 export function AssembleTask({ slug, task, color }: { slug: string; task: Task; color: string }) {
   const template = task.template ?? "";
   const pieces: Piece[] = task.pieces ?? [];
+  // The tray shows the pieces shuffled, once per load, so the right ones are
+  // not always first.
+  const [order] = useState(() => shuffle(pieces.map((piece) => piece.id)));
   const slots: Record<string, Slot> = task.slots ?? {};
   const slotIds = Object.keys(slots);
   // The answer to place: the first right piece of an `any` slot.
@@ -59,6 +89,7 @@ export function AssembleTask({ slug, task, color }: { slug: string; task: Task; 
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const [busy, setBusy] = useState<"" | "save" | "reset">("");
   const [hint, setHint] = useState(0);
+  const [open, setOpen] = useState<Set<number>>(new Set());     // unfolded segments
   const hints = task.hints ?? [];
   const steps = hints.length + 1;            // the last step places the answer
 
@@ -75,7 +106,8 @@ export function AssembleTask({ slug, task, color }: { slug: string; task: Task; 
   }, [slug, task.id]);
 
   const used = new Set(Object.values(placed).flat());
-  const free = pieces.filter((piece) => !used.has(piece.id));
+  const free = order.map((id) => pieces.find((piece) => piece.id === id)).filter(
+    (piece): piece is Piece => !!piece && !used.has(piece.id));
 
   const put = useCallback((id: string, slot: string) => {
     setStatus(null);
@@ -154,6 +186,80 @@ export function AssembleTask({ slug, task, color }: { slug: string; task: Task; 
   };
 
   const names = (task.symbols ?? []).join(", ");
+  const renderLine = (line: string, index: number) => {
+    const slot = SLOT_LINE.exec(line);
+    const inline = slot ? null : SLOT_INLINE.exec(line);
+    if (inline) {
+      const id = inline[1];
+      const before = line.slice(0, inline.index);
+      const after = line.slice(inline.index + inline[0].length);
+      const pieceId = (placed[id] ?? [])[0];
+      const piece = pieces.find((p) => p.id === pieceId);
+      const active = target === id;
+      return (
+        <div key={index}>
+          {highlightPython(before)}
+          <span
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={onDrop(id)}
+            onClick={() => (piece ? take(piece.id) : setTarget(id))}
+            title={`${slots[id]?.label ?? "a piece"}${piece ? " · click to take it out" : ""}`}
+            className="inline-block rounded-md border-2 border-dashed px-1.5 align-middle"
+            style={{
+              borderColor: active ? color : "var(--hairline-strong)",
+              background: `color-mix(in srgb, ${color} ${active ? 8 : 4}%, transparent)`,
+              minWidth: "8ch",
+            }}
+          >
+            {piece ? highlightPython(piece.code) : (
+              <span className="font-sans text-xs" style={{ color: "var(--fg-faint)" }}>
+                {slots[id]?.label ?? "drop here"}
+              </span>
+            )}
+          </span>
+          {highlightPython(after)}
+        </div>
+      );
+    }
+    if (!slot) return <div key={index}>{highlightPython(line) }{line ? "" : " "}</div>;
+    const [, indent, id] = slot;
+    const here = placed[id] ?? [];
+    const active = target === id;
+    return (
+      <div
+        key={index}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={onDrop(id)}
+        onClick={() => setTarget(id)}
+        title={slots[id]?.label}
+        className="my-1 rounded-md border-2 border-dashed px-2 py-1"
+        style={{
+          marginLeft: `${indent.length}ch`,
+          borderColor: active ? color : "var(--hairline-strong)",
+          background: `color-mix(in srgb, ${color} ${active ? 8 : 4}%, transparent)`,
+          minHeight: "2.1em",
+        }}
+      >
+        {here.length === 0 && (
+          <span className="font-sans text-xs" style={{ color: "var(--fg-faint)" }}>
+            Drag {slots[id]?.one || slots[id]?.any ? "a piece" : "pieces"} here{slots[id]?.label ? `: ${slots[id].label}` : ""}
+          </span>
+        )}
+        {here.map((pieceId) => {
+          const piece = pieces.find((p) => p.id === pieceId);
+          return (
+            <div key={pieceId} className="flex items-start gap-2">
+              <span className="flex-1 whitespace-pre">{highlightPython(piece?.code ?? "")}</span>
+              <button type="button" onClick={(event) => { event.stopPropagation(); take(pieceId); }}
+                      className="font-sans text-xs" style={{ color: "var(--fg-faint)" }}
+                      aria-label="Take this piece out">✕</button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <>
       {task.explain && (
@@ -209,82 +315,35 @@ export function AssembleTask({ slug, task, color }: { slug: string; task: Task; 
             </pre>
           </div>
         )}
-        <pre className={`quiet-scroll m-0 overflow-x-auto px-4 py-3 ${CODE}`}
-             style={{ background: "var(--viewer-bg)", color: "var(--viewer-fg)" }}>
-          {template.trimEnd().split("\n").map((line, index) => {
-            const slot = SLOT_LINE.exec(line);
-            const inline = slot ? null : SLOT_INLINE.exec(line);
-            if (inline) {
-              const id = inline[1];
-              const before = line.slice(0, inline.index);
-              const after = line.slice(inline.index + inline[0].length);
-              const pieceId = (placed[id] ?? [])[0];
-              const piece = pieces.find((p) => p.id === pieceId);
-              const active = target === id;
-              return (
-                <div key={index}>
-                  {highlightPython(before)}
-                  <span
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={onDrop(id)}
-                    onClick={() => (piece ? take(piece.id) : setTarget(id))}
-                    title={`${slots[id]?.label ?? "a piece"}${piece ? " · click to take it out" : ""}`}
-                    className="inline-block rounded-md border-2 border-dashed px-1.5 align-middle"
-                    style={{
-                      borderColor: active ? color : "var(--hairline-strong)",
-                      background: `color-mix(in srgb, ${color} ${active ? 8 : 4}%, transparent)`,
-                      minWidth: "8ch",
-                    }}
-                  >
-                    {piece ? highlightPython(piece.code) : (
-                      <span className="font-sans text-xs" style={{ color: "var(--fg-faint)" }}>
-                        {slots[id]?.label ?? "drop here"}
-                      </span>
-                    )}
-                  </span>
-                  {highlightPython(after)}
-                </div>
-              );
-            }
-            if (!slot) return <div key={index}>{highlightPython(line) }{line ? "" : " "}</div>;
-            const [, indent, id] = slot;
-            const here = placed[id] ?? [];
-            const active = target === id;
-            return (
-              <div
-                key={index}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={onDrop(id)}
-                onClick={() => setTarget(id)}
-                title={slots[id]?.label}
-                className="my-1 rounded-md border-2 border-dashed px-2 py-1"
-                style={{
-                  marginLeft: `${indent.length}ch`,
-                  borderColor: active ? color : "var(--hairline-strong)",
-                  background: `color-mix(in srgb, ${color} ${active ? 8 : 4}%, transparent)`,
-                  minHeight: "2.1em",
-                }}
-              >
-                {here.length === 0 && (
-                  <span className="font-sans text-xs" style={{ color: "var(--fg-faint)" }}>
-                    Drag {slots[id]?.one || slots[id]?.any ? "a piece" : "pieces"} here{slots[id]?.label ? `: ${slots[id].label}` : ""}
-                  </span>
-                )}
-                {here.map((pieceId) => {
-                  const piece = pieces.find((p) => p.id === pieceId);
-                  return (
-                    <div key={pieceId} className="flex items-start gap-2">
-                      <span className="flex-1 whitespace-pre">{highlightPython(piece?.code ?? "")}</span>
-                      <button type="button" onClick={(event) => { event.stopPropagation(); take(pieceId); }}
-                              className="font-sans text-xs" style={{ color: "var(--fg-faint)" }}
-                              aria-label="Take this piece out">✕</button>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </pre>
+        {segments(template).map((segment, number) =>
+          segment.fold === null ? (
+            <pre key={number} className={`quiet-scroll m-0 overflow-x-auto px-4 py-3 ${CODE}`}
+                 style={{ background: "var(--viewer-bg)", color: "var(--viewer-fg)" }}>
+              {segment.lines.map(({ text, index }) => renderLine(text, index))}
+            </pre>
+          ) : (
+            <div key={number} className="border-y" style={{ borderColor: "var(--hairline)", background: "var(--overlay)" }}>
+              <button type="button"
+                      onClick={() => setOpen((current) => {
+                        const next = new Set(current);
+                        if (next.has(number)) next.delete(number); else next.add(number);
+                        return next;
+                      })}
+                      className="flex w-full items-center gap-2 px-4 py-1.5 text-left text-xs"
+                      style={{ color: "var(--fg-faint)" }}>
+                <span>{open.has(number) ? "▾" : "▸"}</span>
+                <span className="font-mono" style={{ color: "var(--fg-muted)" }}>{segment.fold}</span>
+                <span>{open.has(number) ? "hide" : `${segment.lines.filter((line) => line.text.trim()).length} lines, already in the file`}</span>
+              </button>
+              {open.has(number) && (
+                <pre className={`quiet-scroll m-0 overflow-x-auto px-4 pb-3 ${CODE}`}
+                     style={{ color: "var(--viewer-fg)", opacity: 0.65 }}>
+                  {segment.lines.map(({ text, index }) => <div key={index}>{highlightPython(text)}{text ? "" : " "}</div>)}
+                </pre>
+              )}
+            </div>
+          ),
+        )}
 
         <div className="border-t px-4 py-3" style={{ borderColor: "var(--hairline)", background: "var(--overlay)" }}>
           <div className="mb-2 text-xs" style={{ color: "var(--fg-faint)" }}>

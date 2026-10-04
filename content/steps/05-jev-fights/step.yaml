@@ -36,12 +36,13 @@ parts:
           file: scripts/first_call.py
           symbols: [TELEGRAPH, REQUEST]
           explain: >
-            Fill both slots below. First, drag in what the ogre just did as
-            `TELEGRAPH`. Any of the moves works. Then build the `"response"`
-            question: its type, and the criteria the model chooses from. Check
-            and save when you are done.
+            Start with the second block, `REQUEST`: build the `"response"`
+            question, its type and the criteria the model chooses from. Then,
+            in the first block, drag in what the ogre just did as `TELEGRAPH`.
+            Any of the moves works. Check and save when you are done.
           template: |
             TELEGRAPH = {{telegraph}}
+            {{fold RESPONSES}}
 
             # The five responses, and when each one is right. A choice question's criteria.
             RESPONSES = {
@@ -52,6 +53,7 @@ parts:
                 "wait": "Hold and watch, against a feint.",
             }
 
+            {{/fold}}
             # The request, as JSON. This is the whole API: some state, some questions.
             REQUEST = {
                 "state": {
@@ -72,10 +74,6 @@ parts:
                 },
             }
           slots:
-            telegraph:
-              answer: [staggers, overhead, charge, sweep]
-              any: true
-              label: what the ogre just did
             kind:
               answer: [choice]
               one: true
@@ -84,20 +82,11 @@ parts:
               answer: [criteria]
               one: true
               label: the options the model chooses from
+            telegraph:
+              answer: [staggers, overhead, charge, sweep]
+              any: true
+              label: what the ogre just did
           pieces:
-            - id: staggers
-              code: '"The ogre staggers, off balance, its guard wide open."'
-            - id: overhead
-              code: '"The ogre raises its club high over its head."'
-            - id: charge
-              code: '"The ogre lowers its shoulder and charges."'
-            - id: sweep
-              code: '"The ogre crouches and swings its club at your legs."'
-            - id: answer
-              code: '"Strike now, while its guard is open."'
-              why: >
-                That is a response, the thing the model decides. `TELEGRAPH`
-                is what the ogre did, so the model can judge it.
             - id: choice
               code: '"type": "choice",'
             - id: noul
@@ -122,13 +111,26 @@ parts:
               why: >
                 The telegraph is already in `state`. The criteria are the
                 options to choose from: the five `RESPONSES`.
+            - id: staggers
+              code: '"The ogre staggers, off balance, its guard wide open."'
+            - id: overhead
+              code: '"The ogre raises its club high over its head."'
+            - id: charge
+              code: '"The ogre lowers its shoulder and charges."'
+            - id: sweep
+              code: '"The ogre crouches and swings its club at your legs."'
+            - id: answer
+              code: '"Strike now, while its guard is open."'
+              why: >
+                That is a response, the thing the model decides. `TELEGRAPH`
+                is what the ogre did, so the model can judge it.
           hints:
-            - >
-              `TELEGRAPH` describes the ogre, not you. The model reads it
-              and picks your response.
             - >
               Picking one of several options is a `choice` question, and its
               criteria are the options: `RESPONSES`, without quotes.
+            - >
+              `TELEGRAPH` describes the ogre, not you. The model reads it
+              and picks your response.
         - kind: terminal
           id: run
           title: Run the request
