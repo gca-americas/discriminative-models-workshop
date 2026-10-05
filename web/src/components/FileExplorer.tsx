@@ -132,10 +132,13 @@ export function FileExplorer({
     api
       .stageChanges(task.compare, task.stage)
       .then((payload) => {
-        setMarks(Object.fromEntries(payload.files.map((change) => [change.path, change])));
+        // `added`: files outside app/ that belong to this step too, such as the workflow in agents/.
+        const extra = (task.added ?? []).map((path) => ({ path, status: "added" as const, lines: [] as number[] }));
+        const files = [...payload.files, ...extra];
+        setMarks(Object.fromEntries(files.map((change) => [change.path, change])));
         setOpenDirs((previous) => {
           const next = new Set(previous);
-          for (const change of payload.files) {
+          for (const change of files) {
             const parts = change.path.split("/").slice(0, -1);
             parts.forEach((_, index) => next.add(parts.slice(0, index + 1).join("/")));
           }
@@ -143,7 +146,7 @@ export function FileExplorer({
         });
       })
       .catch(() => setMarks({}));
-  }, [task?.compare, task?.stage, reloads]);
+  }, [task?.compare, task?.stage, task?.added, reloads]);
 
   useEffect(() => {
     api
@@ -454,7 +457,8 @@ function prune(nodes: FileNode[], only: string[]): FileNode[] {
   const kept: FileNode[] = [];
   for (const node of nodes) {
     if (node.kind === "file") {
-      if (only.includes(node.path)) kept.push(node);
+      // An entry ending in "/" keeps a whole folder.
+      if (only.some((entry) => (entry.endsWith("/") ? node.path.startsWith(entry) : node.path === entry))) kept.push(node);
     } else {
       const children = prune(node.children ?? [], only);
       if (children.length) kept.push({ ...node, children });

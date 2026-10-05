@@ -46,7 +46,8 @@ export interface Task {
   /** files: the step app/ should be at for this view (scripts/stage.py). */
   stage?: number;
   /** files: show only these paths in the tree. */
-  only?: string[];
+  only?: string[];             // files to show; an entry ending in "/" keeps a whole folder
+  added?: string[];            // files: also marked NEW, beside what the stage adds
   /** files: mark what app/ gained since this stage (with `stage` as the later one). */
   compare?: number;
   /** files: a regular expression; matching lines are highlighted, with `highlightLabel` saying why. */

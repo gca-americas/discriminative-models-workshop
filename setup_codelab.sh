@@ -87,8 +87,35 @@ if [ -f "$PROJECT_FILE" ]; then
     PROJECT="$(tr -d '[:space:]' < "$PROJECT_FILE" || true)"
     [ -n "$PROJECT" ] && info "project: $PROJECT (from $PROJECT_FILE)"
 fi
+# No ~/project_id.txt: ./setup_project.sh was not run. Ask for an existing
+# project, check that it exists and this account can see it, and record it so
+# the next run reads it from the file like everyone else.
+project_exists() {
+    gcloud projects describe "$1" --format='value(projectId)' 2>/dev/null < /dev/null | grep -qx "$1"
+}
+if [ -z "$PROJECT" ] && [ -r /dev/tty ] && { : < /dev/tty; } 2>/dev/null; then
+    DEFAULT="$(gcloud config get-value project 2>/dev/null < /dev/null || true)"
+    echo "  No $PROJECT_FILE: ./setup_project.sh creates one. To use a project you already have, enter its ID."
+    for _ in 1 2 3; do
+        if [ -n "$DEFAULT" ]; then
+            printf '  Project ID [%s]: ' "$DEFAULT"
+        else
+            printf '  Project ID: '
+        fi
+        read -r ANSWER < /dev/tty || ANSWER=""
+        ANSWER="$(printf '%s' "${ANSWER:-$DEFAULT}" | tr -d '[:space:]')"
+        [ -n "$ANSWER" ] || continue
+        if project_exists "$ANSWER"; then
+            PROJECT="$ANSWER"
+            echo "$PROJECT" > "$PROJECT_FILE"
+            tick "project: $PROJECT (saved to $PROJECT_FILE)"
+            break
+        fi
+        warn "no project $ANSWER that this account can see. Check the ID (not the name) and try again."
+    done
+fi
 if [ -z "$PROJECT" ]; then
-    PROJECT="$(gcloud config get-value project 2>/dev/null || true)"
+    PROJECT="$(gcloud config get-value project 2>/dev/null < /dev/null || true)"
     [ -n "$PROJECT" ] && info "project: $PROJECT (from gcloud config)"
 fi
 [ -n "$PROJECT" ] || die \

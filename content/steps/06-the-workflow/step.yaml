@@ -240,8 +240,13 @@ parts:
       - kind: files
         id: workflow-files
         title: Update the game and review the changes
-        start: app
         open: app/mode_workflow.py
+        only:
+        - app/
+        - agents/
+        added:
+        - agents/arena/agent.py
+        - agents/arena/__init__.py
         stage: 6
         compare: 5
         explain: 'If the bar says the game is in Discriminative model mode, press
@@ -249,8 +254,8 @@ parts:
           adds to the game: `mode_workflow.py` starts the ADK workflow and receives
           its moves and spells, and `static/modes/workflow.js` draws them on the page.
           Open `main.py` and `static/app.js` to see the highlighted lines that load
-          them. The workflow itself is `agents/arena/agent.py`, the code from parts
-          b and c.'
+          them. The workflow itself is `agents/arena/agent.py`, also marked NEW:
+          the graph and branches from parts b and c, which `mode_workflow.py` runs.'
         highlight: HERE\.glob\("mode_\*\.py"\)|import_module\(path\.stem\)|^PLUGINS
           = load_plugins|^MODES = |loadScript\(`modes/
         highlightLabel: main.py and static/app.js do not change in this step. Their
