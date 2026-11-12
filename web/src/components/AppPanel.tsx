@@ -55,6 +55,16 @@ export function AppPanel({ title, explain, color, mode }: {
     }
   }, []);
 
+  // The game was updated to another mode: the app restarts, so load it again.
+  useEffect(() => {
+    const reload = () => {
+      refresh();
+      setTimeout(() => { refresh(); setNonce((n) => n + 1); }, 2500);
+    };
+    window.addEventListener("jev101:app-changed", reload);
+    return () => window.removeEventListener("jev101:app-changed", reload);
+  }, [refresh]);
+
   useEffect(() => {
     refresh();
     const timer = setInterval(refresh, 4000);

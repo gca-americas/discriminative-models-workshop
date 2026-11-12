@@ -8,7 +8,7 @@ A small ADK workflow of two nodes, with nothing from the arena:
 
 read_card sends the spell card in this folder (spell_card.png) to Gemini
 Decisions with the Google Gen AI SDK, and asks four choice questions about it:
-the colour, and the shape in each position. check compares the answers with
+the color, and the shape in each position. check compares the answers with
 the card's real answer (spell_card.json), which the model never sees.
 
 QUESTIONS and read_card each start with a part missing, marked TODO. Step 6b
@@ -78,8 +78,7 @@ QUESTIONS = {
 async def read_card(ctx: Context, node_input) -> Event:
     """Send the spell card to Gemini Decisions and ask what is on it."""
     png = CARD.read_bytes()
-    client = genai.Client(vertexai=False, api_key=os.environ["GEMINI_API_KEY"],
-                          http_options={"api_version": "v1beta"})
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options={"api_version": "v1beta"})
     started = time.perf_counter()
     result = await client.aio.decisions.create(
         model="gemini-decision-1",
@@ -125,6 +124,9 @@ def load_env() -> None:
             if line and not line.startswith("#") and "=" in line:
                 key, value = line.split("=", 1)
                 os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+    # This lab reaches Gemini with GEMINI_API_KEY only. A setting left in the
+    # shell by another lab would send the call somewhere else.
+    os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
 
 
 async def main() -> int:

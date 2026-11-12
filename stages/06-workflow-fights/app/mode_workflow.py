@@ -128,11 +128,18 @@ def sung(arena, body: dict):
     return 200, {"spell": spell, "fight": arena.fight.snapshot()}
 
 
+def tale(arena, body: dict):
+    """The bard's tale, written by Gemini after the fight, for the page to show."""
+    arena.fight.extra["tale"] = {"title": str(body.get("title", ""))[:120], "tale": str(body.get("tale", ""))[:1200]}
+    return 200, {"fight": arena.fight.snapshot()}
+
+
 ROUTES = {
     ("GET", "/api/workflow"): status,
     ("POST", "/api/workflow/start"): start,
     ("POST", "/api/workflow/stop"): stop,
     ("POST", "/api/spell/forging"): forging,
     ("POST", "/api/spell/sung"): sung,
+    ("POST", "/api/workflow/tale"): tale,
 }
 UNLOCKED = {("GET", "/api/workflow"), ("POST", "/api/workflow/start"), ("POST", "/api/workflow/stop")}

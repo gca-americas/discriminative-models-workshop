@@ -14,7 +14,7 @@
 
   // How the card was read: one card per question, above the fight's answers.
   const QUESTIONS = [
-    ["element", "Element", "What colour is the card? The colour is its element."],
+    ["element", "Element", "What color is the card? The color is its element."],
     ["first", "First shape", "Which shape is on the left?"],
     ["second", "Second shape", "Which shape is in the middle?"],
     ["third", "Third shape", "Which shape is on the right?"],
@@ -33,6 +33,13 @@
         </div>`).join("")}
       </div>
       <div id="read-meta" class="meta"></div>
+    </div>
+    <div id="tale-panel" class="jev" hidden>
+      <div class="label">THE TALE · what Gemini wrote after the fight</div>
+      <div class="panel">
+        <div id="tale-title" class="card-title"></div>
+        <div id="tale-text" class="card-hint" style="font-size: 13px; margin: 0"></div>
+      </div>
     </div>`;
   if ($("answers")) $("answers").insertAdjacentHTML("beforebegin", reading);
   else $("mode-panels").insertAdjacentHTML("beforeend", reading);
@@ -63,7 +70,7 @@
       `<span>model <b>${read.model || "?"}</b></span>`,
       `<span>latency <b>${read.latencyMs} ms</b></span>`,
       `<span>input tokens <b>${read.inputTokens}</b></span>`,
-      `<span>the arena judged it <b>${read.verdict} · ${read.damage} dmg</b></span>`,
+      `<span>the arena judged it <b>${read.verdict}</b> · ${read.damage} damage, more when cast into an opening</span>`,
     ].join("");
   }
 
@@ -75,10 +82,12 @@
     }
     $("read-label").textContent = "";
     $("read-meta").innerHTML = "";
+    $("tale-panel").hidden = true;
   }
 
   onHook("mode", (m) => {
     $("card-reading").hidden = m.id !== "workflow";
+    if (m.id !== "workflow") $("tale-panel").hidden = true;
   });
 
   /* The spell corner follows the workflow: reading the card, then ready. */
@@ -98,6 +107,12 @@
     if (read && readKey !== lastRead) {
       lastRead = readKey;
       drawReading(read);
+    }
+    // After the bell, the bard (Gemini) writes the tale. It takes a few seconds.
+    $("tale-panel").hidden = !fight.over;
+    if (fight.over) {
+      $("tale-title").textContent = fight.tale ? fight.tale.title : "Gemini is writing the tale…";
+      $("tale-text").textContent = fight.tale ? fight.tale.tale : "";
     }
     if (ready && !wasReady) {
       const corner = $("spell-corner");

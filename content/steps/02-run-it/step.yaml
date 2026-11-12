@@ -14,18 +14,17 @@ parts:
     exercise:
       title: Prepare your environment
       intro: >
-        Choose the model the workshop uses. The setup checks your choice before
-        it keeps it. If it does not work, it is marked and the next model is
-        selected for you to try.
+        Enter your Gemini API key, then choose the model the workshop uses. The
+        setup checks each before it keeps it. A model that does not work is
+        marked, and the workbench keeps using the one that does.
       tasks:
         - kind: model-setup
           id: model
           title: Choose the decision model
           explain: >
-            Jev needs a TypeSafe API key. DiffusionGemma needs a Google Cloud
-            project with billing and GPU quota. Gemini Decisions needs a
-            Gemini API key. Enter the Gemini API key whichever model you
-            choose, because step 6 uses it.
+            The Gemini API key is used by every choice. Jev also needs a
+            TypeSafe API key. DiffusionGemma needs a Google Cloud project with
+            billing and GPU quota. Gemini Decisions needs nothing more.
     checks:
       - id: jev-ready
         label: Model endpoint is reachable

@@ -9,16 +9,24 @@ The criteria describe each option in words, so the model matches what it sees
 against them:
 
 ```python
-ELEMENTS = {"fire": "The card is red-orange.", "frost": "The card is light blue.",
-            "earth": "The card is green.", "storm": "The card is purple."}
-SHAPES = {"circle": "A solid filled circle.", "ring": "A hollow circle: an outline with an empty middle.", ...}
+ELEMENTS = {
+    "fire": "The card is red-orange.", "frost": "The card is light blue.",
+    "earth": "The card is green.", "storm": "The card is purple.",
+}
+SHAPES = {"circle": "A solid filled circle.", "ring": "A hollow circle.", ...}
 
 QUESTIONS = {
-    "element": {"type": "choice", "criteria": ELEMENTS,
-                "instructions": "What colour is this spell card? The colour is its element."},
-    "first": {"type": "choice", "criteria": SHAPES,
-              "instructions": "The card shows three shapes in a row. Which shape is the first one, on the left?"},
-    ...                                           # "second" and "third" are the same, for the middle and the right
+    "element": {
+        "type": "choice",
+        "instructions": "What color is this spell card? The color is its element.",
+        "criteria": ELEMENTS,
+    },
+    "first": {
+        "type": "choice",
+        "instructions": "Which shape is the first one, on the left?",
+        "criteria": SHAPES,
+    },
+    ...                        # "second" and "third": the middle and the right
 }
 ```
 
@@ -32,21 +40,26 @@ while it waits.
 ```python
 async def read_card(ctx: Context, node_input) -> Event:
     png = _arena(ctx).rune_png()                  # exactly what the screen shows
-    client = genai.Client(http_options={"api_version": "v1beta"})
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"],
+                          http_options={"api_version": "v1beta"})
     result = await client.aio.decisions.create(
         model="gemini-decision-1",
-        input=[{"type": "image", "mime_type": "image/png", "data": base64.b64encode(png).decode()}],
+        input=[{"type": "image", "mime_type": "image/png",
+                "data": base64.b64encode(png).decode()}],
         questions=QUESTIONS,
     )
     read = result.answers
     element = read["element"].choice
-    sung = {"element": element, "glyphs": [read[p].choice for p in ("first", "second", "third")],
-            "incantation": INCANTATIONS[element]}
-    spell = _arena(ctx).sung(sung)                # the arena judges it against the spell card
-    fizzled = spell["damage"] <= 0                # a misread burns the card: a new one is up
+    shapes = [read[p].choice for p in ("first", "second", "third")]
+    spell = _arena(ctx).sung({"element": element, "glyphs": shapes,
+                              "incantation": INCANTATIONS[element]})
+    fizzled = spell["damage"] <= 0                # a misread burns the card
     return Event(route="again" if fizzled else "stored",
                  state={"spell": None if fizzled else spell})
 ```
+
+The arena judges the reading against the spell card's hidden answer in
+`sung()`.
 
 `read_card` returns a state change and no `output`. The next tick finds the
 spell in state, and a branch with no output is not a second ending for the

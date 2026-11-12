@@ -38,7 +38,7 @@ parts:
             QUESTIONS = {
                 "element": {
                     {{kind}}
-                    "instructions": "What colour is this spell card? The colour is its element.",
+                    "instructions": "What color is this spell card? The color is its element.",
                     {{criteria}}
                 },
                 "first": shape_question("first", "left"),
@@ -98,8 +98,7 @@ parts:
             async def read_card(ctx: Context, node_input) -> Event:
                 """Send the spell card to Gemini Decisions and ask what is on it."""
                 png = CARD.read_bytes()
-                client = genai.Client(vertexai=False, api_key=os.environ["GEMINI_API_KEY"],
-                                      http_options={"api_version": "v1beta"})
+                client = genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options={"api_version": "v1beta"})
                 started = time.perf_counter()
                 result = await client.aio.decisions.create(
                     model="gemini-decision-1",
@@ -275,9 +274,28 @@ parts:
             tick: the move, the model's response, its confidence and how long
             the call took. All five moves should play.
 
+    checks:
+    - id: card-read
+      label: The spell card is read correctly
+      probe: python3 branches/read_card.py
+      assert: contains
+      value: "right: element ✓, shapes 3 of 3"
+      hint: >
+        Add the "element" question and the image block above, check and save
+        each, then run the script. If the reading is wrong, look at what the
+        script printed for each answer.
+    - id: loop-plays
+      label: The fight loop plays every move
+      probe: python3 branches/fight_loop.py
+      assert: contains
+      value: "5 of 5 moves played"
+      hint: >
+        Assemble tick above, check and save, then run the script. If it stops
+        early, check the route tick returns on the last move.
+
   - id: c
     label: Graph
-    headline: Graph definition
+    headline: Run the workflow
     body: c-graph.md
     exercise:
       title: Start the workflow
@@ -319,7 +337,8 @@ parts:
           Then a new card appears and the workflow reads that one. Under the ring, the SPELL
           CARD panel shows what Gemini Decisions answered for the color and
           each shape, with its confidence. The REFLEX panel below it shows the
-          fight''s answers, as in step 5. Restart runs a fresh fight.'
+          fight''s answers, as in step 5. When the fight ends, THE TALE panel
+          shows what Gemini wrote. Restart runs a fresh fight.'
         appMode: workflow
     checks:
     - id: workflow-mode

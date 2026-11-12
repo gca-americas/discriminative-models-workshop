@@ -48,25 +48,31 @@ use a project you already have, put its ID in that file and skip this script.
 
 `setup_codelab.sh` reads the project from `~/project_id.txt`. When that file
 is missing it asks for the ID of an existing project and records it. It then
-installs uv and the Python packages, enables Compute Engine and IAP (both for
-DiffusionGemma), records the project in `.env` as `GOOGLE_CLOUD_PROJECT`,
-puts the exercise files in place, builds the page, starts the workbench in the
-background and runs `scripts/check_setup.py`. Re-running it keeps your
-exercise files; `scripts/starter.sh` resets them. The decision model and the
-Gemini API key are set in step 2 of the workbench.
+installs uv and the Python packages, records the project in `.env` as
+`GOOGLE_CLOUD_PROJECT`, creates a Gemini API key in the project, checks it
+with one request and saves it to `.env`, sets Gemini Decisions as the decision
+model when none is chosen yet, puts the exercise files in place, builds the
+page, starts the workbench in the background and runs
+`scripts/check_setup.py`. Re-running it keeps your exercise files and reuses
+the key; `scripts/starter.sh` resets the files. Step 2 of the workbench
+switches the decision model to Jev or DiffusionGemma. Compute Engine and IAP
+are enabled by `scripts/setup_gemma.sh`, only when you choose DiffusionGemma.
 
 On a laptop, sign in once with `gcloud auth login`, then run the same two
 scripts. `scripts/stop.sh` stops the workbench, and `scripts/start.sh` runs it
 again in the foreground, after a break for example.
 
-Everything Gemini uses one `GEMINI_API_KEY`, created at
+Everything Gemini uses one `GEMINI_API_KEY`. `setup_codelab.sh` creates it
+with `gcloud services api-keys create`, limited to the Generative Language
+API, under the key ID `jev-workshop-gemini`. If that fails, for example when
+an organization policy blocks API keys, step 2 takes a key created at
 https://aistudio.google.com/apikey. Gemini Decisions uses it as a decision
 model, and step 6 uses it to read the spell card (`gemini-decision-1`) and to
 write the tale. Every model choice needs this key because of step 6.
 
 The tale is written by `gemini-flash-latest` unless `JEV101_GEMINI_MODEL` says
-otherwise. When `.env` already holds a working Gemini API key,
-`setup_codelab.sh` runs `scripts/pick_gemini_model.py`, which tries
+otherwise. Once a Gemini API key works, `setup_codelab.sh` and
+`scripts/setup_model.sh` run `scripts/pick_gemini_model.py`, which tries
 `gemini-flash-latest`, falls back to the newest Flash model the key can call,
 and saves the result as `JEV101_GEMINI_MODEL`.
 
@@ -378,7 +384,7 @@ START ─► enter ─┬─► read_card ─► writes state["spell"]        "a
                 │       └──── "read": a spell was cast, a new card is up
                 │
                 └─► tick ─┬─ "next" ─► tick                    reads state["spell"] every tick
-                          └─ "done" ─► summarise ─► bard (Gemini) ─► finish
+                          └─ "done" ─► summarize ─► bard (Gemini) ─► finish
 ```
 
 The graph is a fight loop with a card-reading branch beside it:
@@ -387,8 +393,8 @@ The graph is a fight loop with a card-reading branch beside it:
 ("START", enter),
 (enter, (read_card, tick)),                   # fan-out: read the card and fight, together
 (read_card, {"again": read_card, "stored": rest}),
-(tick, {"next": tick, "read": read_card, "done": summarise}),
-(summarise, bard, finish),
+(tick, {"next": tick, "read": read_card, "done": summarize}),
+(summarize, bard, finish),
 ```
 
 `enter` rings the bell on the running app, or on an in-process engine when no

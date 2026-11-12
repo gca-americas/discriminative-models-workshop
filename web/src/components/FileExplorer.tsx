@@ -495,6 +495,8 @@ function StageBar({ step, color, onReset }: { step: number; color?: string; onRe
       const last = result.output.split("\n").filter(Boolean).pop() ?? "";
       setNote(result.ok ? `The game is in ${modeName(step)}. ${last}` : "could not change it: " + last);
       onReset();
+      // The arena app was restarted with new modes: its panel reloads itself.
+      window.dispatchEvent(new Event("jev101:app-changed"));
     } catch {
       setNote("the workbench did not answer");
     } finally {

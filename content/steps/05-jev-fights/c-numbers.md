@@ -1,7 +1,8 @@
 :::section kicker="Latency" headline="Response time per decision"
 Each tick of the fight in part b came back in a few hundred milliseconds or
-less. Jev answers in about a hundred. Gemini Decisions answers in about three
-hundred. DiffusionGemma on a single GPU takes a little longer.
+less, inside the 70 to 500 millisecond range from step 4. Jev answers in about
+a hundred. Gemini Decisions answers in about three hundred. DiffusionGemma on
+a single GPU takes a little longer.
 That is fast enough for a game loop, a request path, or a check on every
 message before a person or a language model sees it.
 

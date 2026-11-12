@@ -29,7 +29,9 @@ FALLBACK=1
 GEMMA_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --model) MODEL="$2"; shift 2 ;;
+    --model)
+      [ $# -ge 2 ] || { echo "--model needs a value: jev, gemma or gemini"; exit 2; }
+      MODEL="$2"; shift 2 ;;
     --yes|-y) YES=1; shift ;;
     --no-fallback) FALLBACK=0; shift ;;
     --) shift; GEMMA_ARGS=("$@"); break ;;
@@ -109,9 +111,13 @@ tried() { case " $TRIED " in *" $1 "*) return 0 ;; esac; return 1; }
 
 try_jev() {
   local key
+  local source="the key you entered"
   key="${TYPESAFE_API_KEY:-}"                     # the workbench passes a new key this way
   case "$key" in self-hosted) key="" ;; esac
-  key="${key:-$(get_env TYPESAFE_API_KEY)}"
+  if [ -z "$key" ]; then
+    key="$(get_env TYPESAFE_API_KEY)"
+    source="the TYPESAFE_API_KEY already in .env (no key was entered)"
+  fi
   case "$key" in self-hosted) key="" ;; esac
   if [ -z "$key" ] && [ "$INTERACTIVE" = 1 ]; then
     echo
@@ -119,12 +125,13 @@ try_jev() {
     echo "  https://console.typesafe.ai/login?returnTo=%2Fkeys"
     echo
     key="$(ask_secret 'Paste your TYPESAFE_API_KEY:')"
+    source="the key you entered"
   fi
   if [ -z "$key" ]; then
-    echo "· no Jev key"
+    echo "· no Jev key was entered, and .env has none"
     return 1
   fi
-  echo "· checking the key with one request to api.typesafe.ai"
+  echo "· checking $source with one request to api.typesafe.ai"
   if TYPESAFE_API_KEY="$key" .venv/bin/python scripts/verify_jev_key.py < /dev/null; then
     set_env TYPESAFE_API_KEY "$key"
     set_env TYPESAFE_BASE_URL ""                  # api.typesafe.ai
@@ -178,12 +185,6 @@ try_gemma() {
   echo "  needs:    billing, and Compute Engine quota for a GPU"
   echo "  cost:     Google Cloud's GPU pricing while the VM runs; stop it after with scripts/gemma_warm.sh off"
   [ -n "$project" ] || return 1
-  if [ "$INTERACTIVE" = 1 ]; then
-    case "$(ask 'Do you have GPU access in this project? [y/N]:' n)" in
-      y|Y|yes) ;;
-      *) return 1 ;;
-    esac
-  fi
   echo "· checking the GPU quota"
   if ! scripts/setup_gemma.sh --check-quota ${GEMMA_ARGS[@]+"${GEMMA_ARGS[@]}"}; then
     echo "· not enough GPU quota for DiffusionGemma"
@@ -202,7 +203,7 @@ try_gemini() {
 }
 
 pick() {            # the menu, without the options that already failed → echoes a choice
-  local n=0 line
+  local n=0 line default=1
   local -a keys=()
   echo >&2
   echo "Which decision model should the workshop use?" >&2
@@ -217,14 +218,14 @@ pick() {            # the menu, without the options that already failed → echo
     echo "                        Needs billing and GPU quota. About 15 minutes the first time." >&2
   fi
   if ! tried gemini; then
-    n=$((n + 1)); keys+=(gemini)
+    n=$((n + 1)); keys+=(gemini); default=$n      # needs the least, so it is the default
     echo "  $n) Gemini Decisions   Hosted by Google. Needs a Gemini API key. No GPU needed." >&2
   fi
-  line="$(ask "Choose 1-$n [1]:" 1)"
+  line="$(ask "Choose 1-$n [$default]:" "$default")"
   case "$line" in
-    ''|*[!0-9]*) line=1 ;;
+    ''|*[!0-9]*) line=$default ;;
   esac
-  [ "$line" -ge 1 ] && [ "$line" -le "${#keys[@]}" ] || line=1
+  [ "$line" -ge 1 ] && [ "$line" -le "${#keys[@]}" ] || line=$default
   echo "${keys[$((line - 1))]}"
 }
 
@@ -233,6 +234,9 @@ WAS_GEMMA=0
 case "$(get_env TYPESAFE_BASE_URL)" in
   http://127.0.0.1:"${JEV101_GEMMA_PORT:-8096}"*) [ -n "$(get_env JEV101_GEMMA_VM)" ] && WAS_GEMMA=1 ;;
 esac
+
+# The Gemini API key comes first: every choice needs it, for step 6.
+gemini_key || true
 
 CHOICE="$MODEL"
 while true; do
@@ -293,11 +297,15 @@ if [ "$WAS_GEMMA" = 1 ] && [ "$MODEL" != gemma ]; then
 fi
 
 # The arena app reads the model settings when it starts, so a running one would
-# keep the old model. Stop it; start it again from the step you are on.
+# keep the old model. Restart it.
 WORKBENCH="http://127.0.0.1:${JEV101_PORT:-4900}"
 if curl -s -m 3 "$WORKBENCH/api/app/status" 2>/dev/null | grep -q '"running": *true'; then
-  curl -s -m 15 -X POST "$WORKBENCH/api/app/stop" -H 'Content-Type: application/json' -d '{}' >/dev/null 2>&1 \
-    && echo "· stopped the arena app, so it picks up the new model: start it again in the step you are on"
+  if curl -s -m 15 -X POST "$WORKBENCH/api/app/stop" -H 'Content-Type: application/json' -d '{}' >/dev/null 2>&1 \
+     && curl -s -m 30 -X POST "$WORKBENCH/api/app/start" -H 'Content-Type: application/json' -d '{}' >/dev/null 2>&1; then
+    echo "· restarted the arena app, so it uses the new model"
+  else
+    echo "· stopped the arena app, so it picks up the new model: start it again in the step you are on"
+  fi
 fi
 
 echo

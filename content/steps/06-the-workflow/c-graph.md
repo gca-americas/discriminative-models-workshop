@@ -9,8 +9,8 @@ root_agent = Workflow(
         ("START", enter),
         (enter, (read_card, tick)),                   # fan-out: both start
         (read_card, {"again": read_card, "stored": rest}),
-        (tick, {"next": tick, "read": read_card, "done": summarise}),
-        (summarise, bard, finish),
+        (tick, {"next": tick, "read": read_card, "done": summarize}),
+        (summarize, bard, finish),
     ],
 )
 ```
@@ -24,7 +24,7 @@ edge in a cycle, so an unconditional loop is rejected before it can run
 forever.
 
 `bard` is the only `LlmAgent` in the graph. It receives the fight log from
-`summarise` and returns a title and a tale.
+`summarize` and returns a title and a tale.
 
 :::note
 `root_agent` is what ADK's tools look for. `adk web agents` from the root of

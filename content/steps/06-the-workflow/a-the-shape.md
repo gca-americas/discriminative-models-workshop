@@ -1,21 +1,17 @@
 :::section kicker="Limitation" headline="Limits of per-tick decisions"
-The last line of the fight in step 5 says it: *the ogre lumbers off, barely scratched*. The Discriminative model took no
-damage and dealt a little on every tick, and 300 hit points is more than a
-little times sixty. The spell card in the corner of the ring has been there
-the whole time. Reading it takes a model that can see an image.
+Step 5 ended in a draw. The model read every move and took no damage, and
+the ogre was still standing at tick 60.
 
-:::figure id="per-tick-limits" src="per-tick-limits.png"
-:::
-:::
-
-:::section kicker="Limitation" headline="Why correct responses are not enough"
-The ogre has 300 hit points. A right call counters for 3. A strike into an
-opening does 8, because the hide is thick. Even a perfect sixty-tick fight
-leaves the ogre bruised and standing, and the game calls it a draw. That is
-where step 5 ended: the model defended well and still could not win.
+The numbers explain it. The ogre has 300 hit points. A right call counters
+for 3, and a strike into an opening does 8, because the hide is thick. Sixty
+ticks of good decisions do not add up to 300.
 
 Only a spell does real damage: 45 for a perfect casting, 67 when it lands on
-an opening.
+an opening. The spell card in the corner of the ring has been there the whole
+time. Reading it takes a model that can see an image.
+
+:::figure id="per-tick-limits" src="per-tick-limits.png" caption="A step 5 fight. The spell card is in the corner of the ring from the first tick, and nothing reads it."
+:::
 :::
 
 :::section kicker="Design" headline="Assign each task to the right model"
@@ -62,7 +58,7 @@ At the bell the graph fans out to `read_card` and `tick`. After each exchange
 |---|---|---|
 | `"next"` | The fight goes on | `tick` again |
 | `"read"`, with `"next"` | A spell was just cast, so a new card is on the screen | `read_card`, on its own branch |
-| `"done"` | Someone is at 0 HP, or tick 60 | `summarise`, then `bard` |
+| `"done"` | Someone is at 0 HP, or tick 60 | `summarize`, then `bard` |
 
 The two branches never call each other. They share **state**: `read_card`
 writes the spell into state, and each `tick` looks there and offers `cast`

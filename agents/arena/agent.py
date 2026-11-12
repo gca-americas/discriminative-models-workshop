@@ -4,7 +4,7 @@
     Gemini Decisions) what to do about the ogre's move, and picks the next edge.
     It loops on itself until the fight ends, and never waits for the card.
   * `read_card` fetches the spell card the screen is showing, as an image, and
-    asks Gemini Decisions four choice questions about it: the colour, and the
+    asks Gemini Decisions four choice questions about it: the color, and the
     shape in each position. It runs on its own branch, at the same time as the
     fight. The arena judges the reading and the spell goes into state. The
     next tick sees `cast` among its options.
@@ -15,7 +15,7 @@
                   │       └──── "read": a spell was cast, a new card is up
                   │
                   └─► tick ─┬─ "next" ─► tick                    reads state["spell"] every tick
-                            └─ "done" ─► summarise ─► bard (Gemini) ─► finish
+                            └─ "done" ─► summarize ─► bard (Gemini) ─► finish
 
 The workflow plays *against the running arena app* when it can reach one, so
 the page shows the fight as it happens. With no app running it plays the same
@@ -107,6 +107,9 @@ class HttpArena:
     def sung(self, sung: dict):
         return self._call("/api/spell/sung", sung)["spell"]
 
+    def tale(self, tale: dict):
+        self._call("/api/workflow/tale", tale)
+
     def paused(self) -> bool:
         return bool(self._call("/api/fight")["fight"].get("paused"))
 
@@ -140,6 +143,9 @@ class LocalArena:
 
     def sung(self, sung: dict):
         return self.fight.sing(sung)
+
+    def tale(self, tale: dict):
+        self.fight.extra["tale"] = tale
 
     def paused(self) -> bool:
         return False
@@ -194,10 +200,10 @@ INCANTATIONS = {
 
 
 def card_questions() -> dict[str, dict]:
-    """Four choice questions about one image: the colour, and each shape."""
+    """Four choice questions about one image: the color, and each shape."""
     questions = {"element": {
         "type": "choice",
-        "instructions": "What colour is this spell card? The colour is its element.",
+        "instructions": "What color is this spell card? The color is its element.",
         "criteria": ELEMENTS,
     }}
     for position, side in POSITIONS.items():
@@ -338,7 +344,7 @@ bard = LlmAgent(
 )
 
 
-def summarise(ctx: Context, node_input) -> dict:
+def summarize(ctx: Context, node_input) -> dict:
     """Hand the bard the log."""
     state = _arena(ctx).state()
     fight = state["fight"]
@@ -350,6 +356,7 @@ def summarise(ctx: Context, node_input) -> dict:
 def finish(ctx: Context, node_input: dict) -> Event:
     fight = _arena(ctx).state()["fight"]
     tale = node_input if isinstance(node_input, dict) else {"title": "", "tale": str(node_input)}
+    _arena(ctx).tale({"title": tale.get("title", ""), "tale": tale.get("tale", "")})   # for the page to show
     return Event(message=f"{tale.get('title', '')}\n\n{tale.get('tale', '')}",
                  output=fight["result"], state={"result": fight["result"], "tale": tale})
 
@@ -361,7 +368,7 @@ root_agent = Workflow(
         ("START", enter),
         (enter, (read_card, tick)),                   # fan-out: read the card and fight, together
         (read_card, {"again": read_card, "stored": rest}),
-        (tick, {"next": tick, "read": read_card, "done": summarise}),
-        (summarise, bard, finish),
+        (tick, {"next": tick, "read": read_card, "done": summarize}),
+        (summarize, bard, finish),
     ],
 )

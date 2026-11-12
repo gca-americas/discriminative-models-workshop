@@ -19,6 +19,10 @@ probabilities.
 :::figure id="next-word-vs-blank" caption="The same scoring step, used two ways. A language model picks a word and keeps writing. A discriminative model reads the probabilities at a blank and stops."
 :::
 
+This is how the open DiffusionGemma server in this workshop does it. Jev and
+Gemini Decisions are hosted and do not publish their internals, but the idea
+is the same: score the allowed answers, not write one.
+
 The *blank* is a gap in an answer form. The server writes the form itself,
 such as `response: ▢`, and leaves one gap per question. The model's only job
 is to score what belongs in each gap.
@@ -65,7 +69,11 @@ answers given at 0.7 are right about 70% of the time, so a threshold on
 confidence is a threshold on how often you accept a wrong answer. The
 DiffusionGemma server in this workshop reports the top probability itself as
 confidence, averaged over its reads. When the reads disagree, the average
-spreads out and confidence drops.
+spreads out and confidence drops. Gemini Decisions describes its confidence as
+the estimated probability that the top answer is right. In this workshop's
+calls it equals the top probability, so for the same answer it reads a little
+higher than Jev's spread-based number. Test your thresholds on the model you
+use.
 
 :::key
 The answer tells you *what*. The confidence tells you *whether to act*.

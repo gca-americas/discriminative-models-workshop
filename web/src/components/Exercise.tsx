@@ -435,12 +435,35 @@ const TYPESAFE_SIGN_UP = "https://console.typesafe.ai/login?returnTo=%2Fkeys";
 const GEMINI_KEYS = "https://aistudio.google.com/apikey";
 
 function ModelSetupTask({ task, color }: { task: Task; color: string }) {
-  const [model, setModel] = useState("jev");
+  const [model, setModel] = useState("gemini");
+  const [active, setActive] = useState("");          // the model the workbench uses now
+  const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [key, setKey] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [failed, setFailed] = useState<string[]>([]);
   const running = useRef<string | null>(null);
   const run = useRunStream();
+
+  const readEnv = useCallback(async () => {
+    try {
+      const env = await api.env(true);
+      const now = env.jev.startsWith("gemini decisions") ? "gemini"
+        : env.jev.startsWith("gemma") ? "gemma"
+        : env.jev === "live" ? "jev" : "";
+      setActive(now);
+      setHasGeminiKey(env.gemini === "api key");
+      return now;
+    } catch {
+      return "";
+    }
+  }, []);
+
+  // Open on the model the workbench is using now, if one is set up.
+  useEffect(() => {
+    readEnv().then((now) => {
+      if (now && running.current === null) setModel(now);
+    });
+  }, [readEnv]);
 
   const start = useCallback(async (choice: string, secret: string, geminiSecret: string) => {
     running.current = choice;
@@ -454,15 +477,6 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
     }
   }, [run.begin, run.fail]);
 
-  // Open on the model the workbench is using now, if one is set up.
-  useEffect(() => {
-    api.env().then((env) => {
-      if (running.current !== null) return;
-      if (env.jev.startsWith("gemini decisions")) setModel("gemini");
-      else if (env.jev.startsWith("gemma")) setModel("gemma");
-    }).catch(() => {});
-  }, []);
-
   // A DiffusionGemma setup keeps going on the server while the student moves
   // on; coming back picks up its output where it is.
   useEffect(() => {
@@ -475,17 +489,25 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
     }).catch(() => {});
   }, [run.resume]);
 
+  // After a run: a choice that failed is marked, and the selection goes back
+  // to the model that still works, or to Gemini Decisions, which needs least.
   useEffect(() => {
     if (run.state !== "done" || running.current === null) return;
     const choice = running.current;
     running.current = null;
-    if (run.code === 0) return;
-    const now = failed.includes(choice) ? failed : [...failed, choice];
-    setFailed(now);
-    setModel(MODEL_OPTIONS.find((option) => !now.includes(option.id))?.id ?? choice);
-  }, [run.state, run.code, failed]);
+    readEnv().then((now) => {
+      if (run.code === 0) return;
+      const failedNow = failed.includes(choice) ? failed : [...failed, choice];
+      setFailed(failedNow);
+      const next = [now, "gemini", "jev", "gemma"].find((id) => id && !failedNow.includes(id));
+      setModel(next ?? choice);
+    });
+  }, [run.state, run.code]);
 
   const all = MODEL_OPTIONS.every((option) => failed.includes(option.id));
+  const input = "w-full rounded-xl border px-3.5 py-2 font-mono text-sm outline-none";
+  const inputStyle = { background: "var(--viewer-bg)", color: "var(--viewer-fg)", borderColor: "var(--hairline-strong)" };
+  const lastFailed = failed.length > 0 && run.state === "done" && run.code !== 0;
   return (
     <>
       {task.explain && (
@@ -493,9 +515,37 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
           <Inline text={task.explain} />
         </p>
       )}
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+
+      <div className="mt-4 text-sm font-semibold" style={{ color: "var(--fg)" }}>1. Gemini API key</div>
+      <p className="mt-1 text-sm" style={{ color: "var(--fg-muted)" }}>
+        Needed for every choice. Step 6 reads the spell card with Gemini Decisions and writes the tale with Gemini.{" "}
+        {hasGeminiKey ? (
+          <>A working key is already saved in <code>.env</code>, so you can leave this empty.</>
+        ) : (
+          <>
+            Create one in{" "}
+            <a href={GEMINI_KEYS} target="_blank" rel="noreferrer" style={{ color, fontWeight: 600 }}>
+              Google AI Studio ↗
+            </a>
+            {" "}and paste it here. It is checked with one request before it is saved to <code>.env</code>.
+          </>
+        )}
+      </p>
+      <input
+        type="password"
+        value={geminiKey}
+        onChange={(event) => setGeminiKey(event.target.value)}
+        placeholder={hasGeminiKey ? "GEMINI_API_KEY (already set; paste a new one to replace it)" : "GEMINI_API_KEY"}
+        autoComplete="off"
+        spellCheck={false}
+        className={`mt-2 ${input}`}
+        style={inputStyle}
+      />
+
+      <div className="mt-5 text-sm font-semibold" style={{ color: "var(--fg)" }}>2. Decision model</div>
+      <div className="mt-2 grid gap-2 sm:grid-cols-3">
         {MODEL_OPTIONS.map((option) => {
-          const active = model === option.id;
+          const selected = model === option.id;
           const didFail = failed.includes(option.id);
           return (
             <button
@@ -505,8 +555,8 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
               disabled={run.state === "running"}
               className="rounded-2xl border px-3.5 py-3 text-left disabled:opacity-60"
               style={{
-                borderColor: active ? color : "var(--hairline)",
-                background: active ? `color-mix(in srgb, ${color} 10%, transparent)` : "var(--overlay)",
+                borderColor: selected ? color : "var(--hairline)",
+                background: selected ? `color-mix(in srgb, ${color} 10%, transparent)` : "var(--overlay)",
               }}
             >
               <div className="text-sm font-semibold" style={{ color: "var(--fg)" }}>
@@ -515,6 +565,11 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
               <div className="mt-1 text-xs" style={{ color: "var(--fg-muted)" }}>
                 {option.detail}
               </div>
+              {active === option.id && !didFail && (
+                <div className="mt-1.5 text-xs font-medium" style={{ color: "var(--ok)" }}>
+                  In use now
+                </div>
+              )}
               {didFail && (
                 <div className="mt-1.5 text-xs font-medium" style={{ color: "var(--bad)" }}>
                   Did not work here
@@ -527,7 +582,7 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
       {model === "jev" && (
         <div className="mt-3 space-y-2">
           <p className="text-sm" style={{ color: "var(--fg-muted)" }}>
-            To get a key, sign up at the{" "}
+            Jev also needs a TypeSafe key. Sign up at the{" "}
             <a href={TYPESAFE_SIGN_UP} target="_blank" rel="noreferrer" style={{ color, fontWeight: 600 }}>
               TypeSafe console ↗
             </a>
@@ -540,33 +595,21 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
             placeholder="TYPESAFE_API_KEY (leave empty to use the key already in .env)"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-xl border px-3.5 py-2 font-mono text-sm outline-none"
-            style={{ background: "var(--viewer-bg)", color: "var(--viewer-fg)", borderColor: "var(--hairline-strong)" }}
+            className={input}
+            style={inputStyle}
           />
         </div>
       )}
-      <div className="mt-3 space-y-2">
-        <p className="text-sm" style={{ color: "var(--fg-muted)" }}>
-          {model === "gemini"
-            ? "Gemini Decisions needs a Gemini API key. Step 6 uses the same key to read the spell card and write the tale."
-            : "Step 6 also needs a Gemini API key, to read the spell card and write the tale."}{" "}
-          Create one in{" "}
-          <a href={GEMINI_KEYS} target="_blank" rel="noreferrer" style={{ color, fontWeight: 600 }}>
-            Google AI Studio ↗
-          </a>
-          , then paste it here. The key is checked with one request before it is saved to <code>.env</code>.
+      {model === "gemma" && (
+        <p className="mt-3 text-sm" style={{ color: "var(--fg-muted)" }}>
+          DiffusionGemma needs no key. It uses your Google Cloud project, and the setup checks the GPU quota first.
         </p>
-        <input
-          type="password"
-          value={geminiKey}
-          onChange={(event) => setGeminiKey(event.target.value)}
-          placeholder="GEMINI_API_KEY (leave empty to use the key already in .env)"
-          autoComplete="off"
-          spellCheck={false}
-          className="w-full rounded-xl border px-3.5 py-2 font-mono text-sm outline-none"
-          style={{ background: "var(--viewer-bg)", color: "var(--viewer-fg)", borderColor: "var(--hairline-strong)" }}
-        />
-      </div>
+      )}
+      {model === "gemini" && (
+        <p className="mt-3 text-sm" style={{ color: "var(--fg-muted)" }}>
+          Gemini Decisions needs nothing more than the Gemini API key above.
+        </p>
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button
           type="button"
@@ -580,6 +623,11 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
         {model === "gemma" && run.state === "running" && (
           <span className="text-xs" style={{ color: "var(--fg-muted)" }}>
             This runs in the background, so you can move on. The model light at the top right turns green when it is ready.
+          </span>
+        )}
+        {lastFailed && !all && (
+          <span className="text-xs" style={{ color: "var(--fg-muted)" }}>
+            That model did not work here. {active ? "The workbench is still using the model marked In use now." : "Another model is selected for you to try."}
           </span>
         )}
         {all && (

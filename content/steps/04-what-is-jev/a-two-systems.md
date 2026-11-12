@@ -29,8 +29,8 @@ matching.
 A language model is a System Two machine. It reasons in tokens, one at a time.
 The Discriminative model is a **System One model**: it does not reason out
 loud, does not generate anything, and answers every question in one pass. That
-is why it is fast (roughly 70 to 500 milliseconds) and cheap (fractions of a
-cent per thousand decisions).
+is why it is fast (roughly 70 to 500 milliseconds) and cheap (a fraction of a
+cent per decision, a few cents per thousand).
 
 :::key
 A language model writes. A decision model decides. Most of what software

@@ -5,14 +5,15 @@
 # Run ./setup_project.sh FIRST: this script reads the project it recorded in
 # ~/project_id.txt. When it finishes you have:
 #   • uv, a .venv, and exactly what uv.lock pins inside it
-#   • the APIs DiffusionGemma needs, enabled on that project
-#   • a .env ready for the keys step 2 collects; a Gemini API key already in
-#     it is checked with one real request
+#   • a Gemini API key, created in that project, checked with one real
+#     request and saved to .env
+#   • Gemini Decisions set as the decision model, so the workbench opens ready
 #   • the exercise files in the state students receive, on a first setup only
 #   • the workbench built and running in the background on port 4900
 #
-# It asks nothing. The decision model (Jev, DiffusionGemma, or Gemini
-# Decisions) and the Gemini API key are set in step 2 of the workbench, not here.
+# It asks one thing, and only when ~/project_id.txt is missing: which project
+# to use. Step 2 of the workbench switches the decision model to Jev or
+# DiffusionGemma, and takes another Gemini API key if this one could not be made.
 [ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -141,8 +142,8 @@ enable_api() {
         "  ./setup_codelab.sh"
     tick "$api  ($what)"
 }
-enable_api compute.googleapis.com "the GPU VM for DiffusionGemma, if you choose it in step 2"
-enable_api iap.googleapis.com "the private tunnel to that VM"
+# Compute Engine and IAP are only for DiffusionGemma: scripts/setup_gemma.sh
+# enables them when you choose it in step 2.
 
 # ── 3 · .env: ready for step 2; a Gemini API key already there is checked ───
 say "2 · .env"
@@ -173,24 +174,65 @@ set_env GOOGLE_CLOUD_PROJECT "$PROJECT"
 tick "project $PROJECT recorded, for DiffusionGemma if you choose it"
 info "the decision model's settings in .env are left as they are; step 2 sets them"
 
-# ── 4 · the Gemini API key, if one is already here ──────────────────────────
+# ── 4 · the Gemini API key: use the one in .env, or create one in the project ─
 say "3 · Gemini API key"
-# Step 2 asks for the key and checks it. A key already in .env is checked now,
-# and the Gemini model for the tale in step 6 is picked with it.
-if grep -q '^GEMINI_API_KEY=.' .env; then
-    if .venv/bin/python scripts/verify_gemini_key.py < /dev/null; then
-        tick "the Gemini API key in .env works"
-        if GEMINI_NAME="$(.venv/bin/python scripts/pick_gemini_model.py < /dev/null)"; then
-            set_env JEV101_GEMINI_MODEL "$GEMINI_NAME"
-            tick "$GEMINI_NAME answered; saved as JEV101_GEMINI_MODEL"
-        else
-            warn "no Gemini Flash model answered with this key. The tale in step 6 needs one."
-        fi
-    else
-        warn "the Gemini API key in .env did not work. Step 2 lets you enter another."
-    fi
+mkdir -p runs
+# A Gemini API key is a Google Cloud API key limited to the Generative Language
+# API, so it can be created here, in your project, with no visit to AI Studio.
+# A key already in .env is checked and kept.
+KEY_ID=jev-workshop-gemini
+# retry CMD...: up to 6 tries, 10 s apart. A project minutes old answers 403 or
+# "API not enabled" while its IAM policy and the new APIs propagate.
+retry() {
+    local n
+    for n in 1 2 3 4 5 6; do
+        "$@" >/dev/null 2>runs/gemini-key.err < /dev/null && return 0
+        if [ "$n" -lt 6 ]; then info "not ready yet, retrying in 10 s ($n/6)"; sleep 10; fi
+    done
+    return 1
+}
+key_exists() { gcloud services api-keys describe "$KEY_ID" --project "$PROJECT" --format='value(name)'; }
+make_key() {        # a fixed key ID: a re-run reuses the key instead of making another
+    key_exists >/dev/null 2>&1 || gcloud services api-keys create --project "$PROJECT" \
+        --key-id "$KEY_ID" --display-name "Jev workshop (Gemini)" \
+        --api-target=service=generativelanguage.googleapis.com -q
+}
+
+GEMINI_READY=0
+if grep -q '^GEMINI_API_KEY=.' .env && .venv/bin/python scripts/verify_gemini_key.py < /dev/null; then
+    tick "the Gemini API key in .env works"
+    GEMINI_READY=1
 else
-    info "no Gemini API key yet. Step 2 asks for one: https://aistudio.google.com/apikey"
+    info "creating a Gemini API key in $PROJECT"
+    NEW_KEY=""
+    if retry gcloud services enable generativelanguage.googleapis.com apikeys.googleapis.com --project "$PROJECT" -q \
+       && retry make_key; then
+        NEW_KEY="$(gcloud services api-keys get-key-string "$KEY_ID" --project "$PROJECT" \
+                    --format='value(keyString)' 2>/dev/null < /dev/null || true)"
+    fi
+    # A new key can take a minute before the Gemini API accepts it: retry the check too.
+    if [ -n "$NEW_KEY" ] && retry env GEMINI_API_KEY="$NEW_KEY" .venv/bin/python scripts/verify_gemini_key.py; then
+        set_env GEMINI_API_KEY "$NEW_KEY"            # never printed
+        tick "Gemini API key created in $PROJECT and checked"
+        GEMINI_READY=1
+    else
+        warn "could not create a working Gemini API key here (details: runs/gemini-key.err)."
+        warn "Step 2 takes one from https://aistudio.google.com/apikey"
+    fi
+fi
+if [ "$GEMINI_READY" = 1 ]; then
+    if GEMINI_NAME="$(.venv/bin/python scripts/pick_gemini_model.py < /dev/null)"; then
+        set_env JEV101_GEMINI_MODEL "$GEMINI_NAME"
+        tick "$GEMINI_NAME answered; saved as JEV101_GEMINI_MODEL"
+    else
+        warn "no Gemini Flash model answered with this key. The tale in step 6 needs one."
+    fi
+    # No decision model chosen yet: start on Gemini Decisions, which needs
+    # nothing more. Step 2 switches to Jev or DiffusionGemma.
+    if ! grep -q '^JEV101_MODEL=.' .env; then
+        set_env JEV101_MODEL gemini
+        tick "decision model: Gemini Decisions (change it in step 2)"
+    fi
 fi
 if cmp -s .env .env.before; then
     rm -f .env.before
@@ -220,16 +262,21 @@ else
 fi
 # app/ starts in manual mode, the way step 3 expects it.
 if [ ! -f runs/stage.json ]; then
-    .venv/bin/python scripts/stage.py 3 >/dev/null 2>&1 < /dev/null || true
-    tick "the arena app is in manual mode, ready for step 3"
+    if .venv/bin/python scripts/stage.py 3 >/dev/null 2>&1 < /dev/null; then
+        tick "the arena app is in manual mode, ready for step 3"
+    else
+        warn "could not put the arena app in manual mode. Run:  .venv/bin/python scripts/stage.py 3"
+    fi
 fi
 
 # ── 6 · the workbench: build the page, start the server in the background ───
 say "5 · The workbench"
 mkdir -p runs
-(cd web && ([ -d node_modules ] || npm install --no-fund --no-audit >/dev/null 2>&1) && npm run build >/dev/null 2>&1) || die \
-    "The page did not build." \
-    "Run it by hand to see why:  cd web && npm install && npm run build"
+if ! (cd web && ([ -d node_modules ] || npm install --no-fund --no-audit) && npm run build) > runs/setup.log 2>&1; then
+    tail -20 runs/setup.log >&2
+    die "The page did not build. The last lines of runs/setup.log are above." \
+        "Run it by hand to see more:  cd web && npm install && npm run build"
+fi
 tick "page built (web/dist)"
 
 # Replace a workbench that is already running, rather than start a second one.
@@ -251,7 +298,7 @@ fi
 
 # ── 7 · preflight, run for you ──────────────────────────────────────────────
 say "6 · Preflight"
-.venv/bin/python scripts/check_setup.py < /dev/null || info "model: not ready is expected until you choose one in step 2"
+.venv/bin/python scripts/check_setup.py < /dev/null || info "no decision model yet: step 2 of the workbench sets one up"
 
 # ── where to go next ────────────────────────────────────────────────────────
 # Cloud Shell puts the preview host in WEB_HOST; elsewhere it is localhost.
@@ -265,8 +312,8 @@ printf '\n\033[1m%s\033[0m\n' "Setup finished. The workbench is already running.
 printf '\n'
 printf '  \033[1mOpen this and start at step 0\033[0m\n'
 printf '      %s/step/introduction\n\n' "$LAB_URL"
-printf '  Step 2 chooses the decision model (Jev, DiffusionGemma, or Gemini Decisions)\n'
-printf '  and takes your Gemini API key: https://aistudio.google.com/apikey\n\n'
+printf '  The workbench opens on Gemini Decisions. Step 2 switches the decision model\n'
+printf '  to Jev or DiffusionGemma.\n\n'
 printf '  It runs in the background. You do not need to start anything else.\n'
 printf '      log      runs/workbench.log\n'
 printf '      stop     scripts/stop.sh\n'

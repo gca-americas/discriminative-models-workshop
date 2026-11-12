@@ -68,8 +68,8 @@ if [ -f "$PROJECT_FILE" ]; then
             tick "reusing $EXISTING (exists, billing linked)"
             say "Project ready: $EXISTING"
             printf '  Next:  ./setup_codelab.sh\n'
-    printf '  A new project usually has no GPU quota. DiffusionGemma needs one GPU (a quota\n'
-    printf '  request); Jev and Gemini Decisions work straight away.\n\n'
+            printf '  A new project usually has no GPU quota. DiffusionGemma needs one GPU (a quota\n'
+            printf '  request); Jev and Gemini Decisions work straight away.\n\n'
             exit 0
         fi
         warn "$EXISTING is missing or has no billing — creating a fresh project."
@@ -125,6 +125,14 @@ fi
 ACCOUNT_NAME="${ACCOUNT_LINE##*$'\t'}"
 ACCOUNT_ID="${ACCOUNT_NAME#billingAccounts/}"
 ACCOUNT_DISPLAY="${ACCOUNT_LINE%%$'\t'*}"
+# BILLING_ACCOUNT=<id> ./setup_project.sh picks the account yourself, for
+# example when a work account is listed before the one you want billed.
+if [ -n "${BILLING_ACCOUNT:-}" ]; then
+    ACCOUNT_ID="${BILLING_ACCOUNT#billingAccounts/}"
+    ACCOUNT_DISPLAY="chosen with BILLING_ACCOUNT"
+fi
+info "billing account: $ACCOUNT_DISPLAY ($ACCOUNT_ID)"
+info "to bill another account: BILLING_ACCOUNT=<id> ./setup_project.sh"
 
 if [ -z "$ACCOUNT_ID" ]; then
     die "Could not read a billing account ID out of gcloud's output." \
@@ -196,8 +204,8 @@ tick "recorded in $PROJECT_FILE and set as the active gcloud project"
 
 # ── 5 · wait for the project to actually be allowed to serve ─────────────────
 # A project that is seconds old will answer 403 IAM_PERMISSION_DENIED while its
-# IAM policy propagates. ./setup_codelab.sh makes a real Gemini call almost
-# immediately, so absorb that wait here instead of failing there.
+# IAM policy propagates. ./setup_codelab.sh enables APIs and creates the Gemini
+# API key in this project straight away, so absorb that wait here.
 say "3 · Waiting for the project to come up"
 info "a brand new project answers 403 for a minute or so — this is normal"
 

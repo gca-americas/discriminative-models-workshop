@@ -31,7 +31,7 @@ const QUESTIONS: { text: string; answer: Primitive; why: string }[] = [
     why: "Fresh, winded, spent: ordered levels. The answer can land between two of them.",
   },
   {
-    text: "Which of the six spells suits this opponent?",
+    text: "Which of the four elements is this opponent weakest to?",
     answer: "choice",
     why: "A fixed set of options, no order. Choice handles up to 255 of them.",
   },

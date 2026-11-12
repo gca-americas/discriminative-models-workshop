@@ -50,8 +50,10 @@ def _vet(argv: list[str]) -> None:
     if argv[0] not in ALLOWED:
         raise ProbeRefused(f"{argv[0]} is not an allowed probe binary")
     if argv[0] == "python3":
-        if len(argv) < 2 or not argv[1].startswith("scripts/") or not argv[1].endswith(".py"):
-            raise ProbeRefused("python3 probe may only run a file under scripts/")
+        # The workshop's own scripts, and the step 6b exercise files in branches/.
+        if len(argv) < 2 or not argv[1].startswith(("scripts/", "branches/")) or not argv[1].endswith(".py") \
+                or ".." in argv[1]:
+            raise ProbeRefused("python3 probe may only run a file under scripts/ or branches/")
     if argv[0] == "curl":
         # -s -o /dev/null -w '%{http_code}' style probes only: no uploads.
         if any(flag in argv for flag in ("-d", "--data", "-T", "--upload-file", "-X")):

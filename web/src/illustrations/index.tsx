@@ -244,7 +244,7 @@ function AppStructure() {
       <rect x={228} y={14} width={214} height={176} rx="12"
             fill="color-mix(in srgb, var(--accent) 8%, transparent)" stroke="var(--accent)" />
       <text x={242} y={36} style={strong}>main.py</text>
-      <text x={300} y={36} style={faint}>the server, port 8090</text>
+      <text x={300} y={36} style={faint}>the server</text>
       {server.map(([name, note], i) => (
         <g key={name}>
           <rect x={242} y={52 + i * 44} width={186} height={36} rx="6" fill="var(--card)" stroke="var(--hairline-strong)" />
@@ -467,7 +467,7 @@ function OneRequest() {
           <text x={392} y={76 + i * 34} style={faint}>{detail}</text>
         </g>
       ))}
-      <text x={322} y={172} style={faint}>jev-1.13.0 · 121 input tokens · 0 output</text>
+      <text x={322} y={172} style={faint}>jev-1.13 · 121 input tokens · 0 output</text>
     </svg>
   );
 }
@@ -776,9 +776,9 @@ function ThresholdBands() {
   const x0 = 40, w = 520;
   const at = (v: number) => x0 + w * v;
   const bands = [
-    { from: 0, to: 0.4, name: "low", does: "fall back", colour: "var(--red, #f43f5e)" },
-    { from: 0.4, to: 0.8, name: "medium", does: "act with a check", colour: "var(--amber, #f59e0b)" },
-    { from: 0.8, to: 1, name: "high", does: "act on its own", colour: "var(--accent)" },
+    { from: 0, to: 0.4, name: "low", does: "fall back", color: "var(--red, #f43f5e)" },
+    { from: 0.4, to: 0.8, name: "medium", does: "act with a check", color: "var(--amber, #f59e0b)" },
+    { from: 0.8, to: 1, name: "high", does: "act on its own", color: "var(--accent)" },
   ];
   const answers = [
     { conf: 0.25, text: "block_high · 0.25", result: "falls back: dodge" },
@@ -792,7 +792,7 @@ function ThresholdBands() {
       {bands.map((b) => (
         <g key={b.name}>
           <rect x={at(b.from)} y={34} width={at(b.to) - at(b.from)} height={30}
-                fill={`color-mix(in srgb, ${b.colour} 16%, transparent)`} stroke={b.colour} strokeOpacity="0.6" />
+                fill={`color-mix(in srgb, ${b.color} 16%, transparent)`} stroke={b.color} strokeOpacity="0.6" />
           <text x={(at(b.from) + at(b.to)) / 2} y={48} textAnchor="middle" style={{ ...strong, fontSize: 11 }}>{b.name}</text>
           <text x={(at(b.from) + at(b.to)) / 2} y={60} textAnchor="middle" style={faint}>{b.does}</text>
         </g>
@@ -907,9 +907,9 @@ function CostShape() {
       <text x={520} y={168} textAnchor="end" style={faint}>length of the answer</text>
       <text x={58} y={30} style={faint}>cost per call</text>
       <path d="M50 140 C 200 130, 350 70, 520 40" fill="none" stroke="var(--fg-faint)" strokeWidth="2" />
-      <text x={330} y={60} style={label}>language model: input + output tokens</text>
+      <text x={300} y={52} textAnchor="end" style={label}>language model: input + output tokens</text>
       <path d="M50 142 L 520 142" fill="none" stroke="var(--accent)" strokeWidth="2.5" />
-      <text x={300} y={134} style={{ ...label, fill: "var(--accent)" }}>The Discriminative model: input tokens only, output is free</text>
+      <text x={58} y={168} style={{ ...label, fill: "var(--accent)" }}>discriminative model: input tokens only, output is free</text>
     </svg>
   );
 }
