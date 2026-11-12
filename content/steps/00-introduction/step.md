@@ -50,7 +50,7 @@ A successful system consists of multiple components:
 
 | Component | Role | In this workshop |
 |---|---|---|
-| **Workflow** | Orchestrates steps, loops and branches, holds shared state | An ADK graph workflow |
+| **Workflow** | Orchestrates steps, runs work alongside a loop, holds shared state | An ADK graph workflow |
 | **Deterministic code** | Rules, thresholds, validation. Instant, free, and auditable | The game rules, `choose()`, and spell validation |
 | **Discriminative model** | Fast, bounded decisions with a confidence score | Choosing a response every tick, and reading the spell card image |
 | **Language model** | Open-ended text | Gemini writes the tale of the fight |
@@ -94,6 +94,6 @@ build a fast and smart system.
 - Build a request, send it with the TypeSafe SDK or the Google Gen AI SDK,
   then let the model choose every move in a game.
 - Read an image with Gemini Decisions by asking choice questions about it.
-- Build an ADK graph workflow that fights in a loop, reads the spell card on
-  a branch beside it, and hands the result to Gemini for a written summary.
+- Build an ADK graph workflow that fights in a loop, reads the spell card
+  alongside it, and hands the result to Gemini for a written summary.
 :::

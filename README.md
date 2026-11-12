@@ -220,7 +220,7 @@ The Python packages are `typesafe-sdk` 0.7, `google-genai` 3.2 and
 | 3 Play the game manually | 6 | Start the arena app, review the rules, and respond to each move within two seconds. |
 | 4 Discriminative model concepts | 9 | System One and System Two models; Choice, Score, and Noul; probability, confidence, and thresholds. Two interactive widgets. |
 | 5 Automate decisions with the model | 9 | Run the arena with the model choosing each response. Fill in a request (a telegraph and a choice question) and run it. Review the probabilities, the confidence rule in `choose()`, latency and cost. The model avoids damage but cannot win. |
-| 6 Combine models in an ADK workflow | 12 | `agents/arena/agent.py`: an ADK graph with a fight loop and a card-reading branch beside it. The decision model answers each tick, Gemini Decisions reads the spell card image while the fight goes on and the arena judges the reading, and Gemini writes the tale at the end. |
+| 6 Combine models in an ADK workflow | 12 | `agents/arena/agent.py`: an ADK graph with a fight loop and a card reader alongside it. The decision model answers each tick, Gemini Decisions reads the spell card image while the fight goes on and the arena judges the reading, and Gemini writes the tale at the end. |
 | 7 Summary and next steps | 3 | When to use code, a discriminative model, or a language model; limitations; a summary of the lab. |
 
 ## Architecture
@@ -248,7 +248,7 @@ the decision model in "Discriminative model fights"; ③ calls all of them in
  ③ ADK workflow · scripts/arena.py → agents/arena/agent.py
       tick: the decision model, one call per tick ──────────────────► the decision model
                                                                       (step 2's choice, below)
-      read_card, on its own branch: GET /api/sigil.png from ②,
+      read_card, alongside the fight: GET /api/sigil.png from ②,
                then four choice questions about the image ───────────────────────────► Gemini Decisions
                                                                       (gemini-decision-1)
       bard: the tale, once, after the fight ────────────────────────► Gemini
@@ -277,8 +277,8 @@ from Python on the machine, never from the page:
   returns the answers and the outcome. The page draws the bars.
 - *Workflow fights.* Start makes ② launch ③ as a subprocess (log in
   `runs/arena-workflow.log`). ③ drives the fight: it asks ② for each
-  telegraph, calls the model, and posts the decision. `read_card` runs on its
-  own branch at the same time, so the fight does not wait for it. The page only polls
+  telegraph, calls the model, and posts the decision. `read_card` runs
+  alongside it, so the fight does not wait for it. The page only polls
   ② and draws. Pause is a flag on ② that ③ checks before each tick.
 
 **How the model is called.** `scripts/decisions.py` holds both calls behind
@@ -387,7 +387,7 @@ START ─► enter ─┬─► read_card ─► writes state["spell"]        "a
                           └─ "done" ─► summarize ─► bard (Gemini) ─► finish
 ```
 
-The graph is a fight loop with a card-reading branch beside it:
+The graph is a fight loop with a card reader alongside it:
 
 ```python
 ("START", enter),
@@ -404,14 +404,14 @@ tick, offers `cast` only when a spell is ready, posts the decision to the
 arena so the page can draw it, and returns `Event(route=[...])`. After a cast
 the routes are `["read", "next"]`, which takes both edges at once.
 
-`read_card` runs on its own branch, at the bell and after each cast. It
+`read_card` runs alongside the fight, at the bell and after each cast. It
 fetches the spell card the screen is showing as a PNG and sends it to Gemini
 Decisions with four choice questions: `element`, `first`, `second` and
 `third`. It posts the reading to the arena, which judges it against the
-card's hidden answer, and writes the spell into state with no output, so the
-branch never counts as a second ending of the graph. A misread card leaves no
+card's hidden answer, and writes the spell into state with no output, so it
+never counts as a second ending of the graph. A misread card leaves no
 spell and routes `"again"` to read the new card. The incantation is a fixed
-line per element. Both branches are tasks on one event loop: while `tick`
+line per element. Both are tasks on one event loop: while `tick`
 awaits its model, `read_card` runs.
 
 `bard` is an `LlmAgent` on Gemini. It writes the tale once, after the fight,

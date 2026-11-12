@@ -48,6 +48,6 @@ In this lab you:
   actions.
 - Read a spell card image with Gemini Decisions, and ran the fight loop on
   its own.
-- Joined them in one ADK workflow that fights in a loop, reads each card on
-  a branch beside it, casts on an opening, and has Gemini write the tale.
+- Joined them in one ADK workflow that fights in a loop, reads each card
+  alongside it, casts on an opening, and has Gemini write the tale.
 :::

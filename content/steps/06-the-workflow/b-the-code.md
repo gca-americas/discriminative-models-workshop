@@ -31,7 +31,7 @@ QUESTIONS = {
 ```
 
 **read_card()** sends the image and the questions, and gets all four answers
-back in one response. It runs on its own branch, so the fight keeps ticking
+back in one response. It runs alongside the fight, so the fight keeps ticking
 while it waits.
 
 :::figure id="read-card-node"
@@ -62,7 +62,7 @@ The arena judges the reading against the spell card's hidden answer in
 `sung()`.
 
 `read_card` returns a state change and no `output`. The next tick finds the
-spell in state, and a branch with no output is not a second ending for the
+spell in state, and a path with no output is not a second ending for the
 graph: ADK requires one terminal output, and that is the fight's.
 
 :::note
@@ -98,7 +98,7 @@ async def tick(ctx: Context, node_input) -> Event:
 
     routes = []                                   # which edges to follow next
     if entry["spell_used"] and not over:
-        routes.append("read")                     # a new card is up: read it too
+        routes.append("read")                     # a new card is up: read it, in the background
     routes.append("done" if over else "next")     # and keep fighting, or end
     return Event(output="fight", route=routes, state={"tick": ..., ...})
 ```

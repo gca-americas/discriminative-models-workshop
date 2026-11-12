@@ -443,7 +443,7 @@ export function CardQuestions() {
 export function ArenaGraph() {
   return (
     <svg viewBox="0 0 660 262" role="img"
-         aria-label="The bell, enter, starts two branches at once. On one, read_card: Gemini Decisions reads the spell card and writes the spell into shared state. On the other, tick: your decision model answers once per tick, loops on itself with the route next, and reads the spell from state every tick. The branches never call each other. After a cast, tick also routes read, which starts read_card again for the new card. When the fight is over, tick routes done to summarize and then bard, where Gemini writes the tale.">
+         aria-label="The bell, enter, starts two things at once. In the background, read_card: Gemini Decisions reads the spell card and writes the spell into shared state. Alongside it, tick: your decision model answers once per tick, loops on itself with the route next, and reads the spell from state every tick. The two never call each other. After a cast, tick also routes read, which starts read_card again for the new card. When the fight is over, tick routes done to summarize and then bard, where Gemini writes the tale.">
       <defs><Arrow id="ag-a" color={LINE} /><Arrow id="ag-b" color={ACCENT} /></defs>
 
       <Box x={10} y={103} w={84} h={48} title="enter" note="the bell" />
@@ -451,8 +451,8 @@ export function ArenaGraph() {
       <line x1="94" y1="136" x2="150" y2="196" stroke={ACCENT} markerEnd="url(#ag-b)" />
       <text x={100} y={108} style={faint}>both start</text>
 
-      {/* the card branch */}
-      <text x={152} y={14} style={faint}>card branch · about half a second per card</text>
+      {/* the card reader */}
+      <text x={152} y={14} style={faint}>card reader · in the background · about half a second per card</text>
       <Box x={152} y={22} w={230} h={54} title="read_card" note="Gemini Decisions reads the image" dashed />
 
       {/* shared state */}
@@ -495,7 +495,7 @@ export function LoopRoutes() {
   ];
   return (
     <svg viewBox="0 0 680 206" role="img"
-         aria-label="After each exchange, tick returns its routes. Next, while the fight goes on: tick again. Read and next together, when a spell was just cast: read_card starts on its own branch for the new card, and tick goes on. Done, at 0 HP or tick 60: summarize, then bard.">
+         aria-label="After each exchange, tick returns its routes. Next, while the fight goes on: tick again. Read and next together, when a spell was just cast: read_card starts in the background for the new card, and tick goes on. Done, at 0 HP or tick 60: summarize, then bard.">
       <defs><Arrow id="lr-a" color={LINE} /><Arrow id="lr-b" color={ACCENT} /></defs>
       <Box x={10} y={76} w={120} h={54} title="tick" note="one exchange" accent />
       <line x1="130" y1="103" x2="158" y2="103" stroke={LINE} markerEnd="url(#lr-a)" />
@@ -515,7 +515,7 @@ export function LoopRoutes() {
   );
 }
 
-/* 6a: one event loop. A branch runs until it awaits its model, then the other runs. */
+/* 6a: one event loop. One runs until it awaits its model, then the other runs. */
 export function CardAlongside() {
   const run = (x1: number, x2: number, y: number, name: string, color: string) => (
     <g key={`${name}-${x1}`}>
@@ -533,17 +533,17 @@ export function CardAlongside() {
   const card = "var(--fg-muted)";
   return (
     <svg viewBox="0 0 680 186" role="img"
-         aria-label="One event loop in one thread. The card branch runs read_card, waits at an await for Gemini Decisions, then stores the spell. The fight branch runs tick, waits at an await for the decision model, and runs tick again, several times, while the card is being read. Only one runs at a time, and each runs while the other is waiting. The tick after the spell is stored has cast among its options.">
+         aria-label="One event loop in one thread. The card reader runs read_card, waits at an await for Gemini Decisions, then stores the spell. The fight runs tick, waits at an await for the decision model, and runs tick again, several times, while the card is being read. Only one runs at a time, and each runs while the other is waiting. The tick after the spell is stored has cast among its options.">
       <defs><Arrow id="ca-a" color={LINE} /></defs>
       <text x={10} y={20} style={strong}>One event loop, one thread</text>
-      <text x={198} y={20} style={faint}>it switches branch at every await</text>
+      <text x={198} y={20} style={faint}>it switches between them at every await</text>
 
-      <text x={10} y={70} style={label}>card branch</text>
+      <text x={10} y={70} style={label}>card reader</text>
       {run(110, 190, 66, "read_card", card)}
       {wait(190, 420, 66, "await Gemini Decisions", card)}
       {run(420, 516, 66, "spell → state", card)}
 
-      <text x={10} y={130} style={{ ...label, fill: ACCENT }}>fight branch</text>
+      <text x={10} y={130} style={{ ...label, fill: ACCENT }}>fight loop</text>
       {run(190, 230, 126, "tick", ACCENT)}
       {wait(230, 300, 126, "await model", ACCENT)}
       {run(300, 340, 126, "tick", ACCENT)}
@@ -553,7 +553,7 @@ export function CardAlongside() {
       {run(580, 668, 126, "tick · cast?", ACCENT)}
       <line x1="516" y1="78" x2="600" y2="110" stroke={LINE} strokeDasharray="3 3" markerEnd="url(#ca-a)" />
 
-      <text x={10} y={174} style={faint}>Solid: the branch is running. Dashed: it waits at an await, and the loop runs the other branch.</text>
+      <text x={10} y={174} style={faint}>Solid: running. Dashed: waiting at an await, while the event loop runs the other one.</text>
     </svg>
   );
 }
@@ -577,9 +577,9 @@ function StepRow({ steps, prefix }: { steps: [string, string, boolean][]; prefix
 export function ReadCardNode() {
   return (
     <svg viewBox="0 0 680 118" role="img"
-         aria-label="One pass through read_card: take the card off the arena's screen as a PNG, ask Gemini Decisions four choice questions with decisions.create, read the element and three shapes from the answers, let the arena judge the reading, and write the spell into state, or None after a misread. It returns no output; the fight branch reads the spell from state.">
+         aria-label="One pass through read_card: take the card off the arena's screen as a PNG, ask Gemini Decisions four choice questions with decisions.create, read the element and three shapes from the answers, let the arena judge the reading, and write the spell into state, or None after a misread. It returns no output; the fight reads the spell from state.">
       <defs><Arrow id="rc-a" color={LINE} /></defs>
-      <text x={10} y={18} style={faint}>read_card · its own branch · one call to Gemini Decisions, with the Google Gen AI SDK</text>
+      <text x={10} y={18} style={faint}>read_card · alongside the fight · one call to Gemini Decisions, with the Google Gen AI SDK</text>
       <StepRow prefix="rc" steps={[
         ["arena.rune_png", "the card, as PNG", false],
         ["decisions.create", "4 choice questions", true],
@@ -603,7 +603,7 @@ export function TickNode() {
     <svg viewBox="0 0 680 262" role="img"
          aria-label="One pass through tick: read whether a spell is ready from state, get the ogre's move from the arena, ask your decision model with ask_async, apply the thresholds in choose(), and let the arena resolve the blow. Then the routes: next, back to tick, while the fight goes on; read and next together, to read_card and tick, when a spell was just cast; done, to summarize, when someone reaches 0 HP or tick 60.">
       <defs><Arrow id="tn-a" color={LINE} /><Arrow id="tn-b" color={ACCENT} /></defs>
-      <text x={10} y={18} style={faint}>one tick · ask_async is awaited, so the card branch keeps running</text>
+      <text x={10} y={18} style={faint}>one tick · ask_async is awaited, so the card reader keeps running</text>
       <StepRow prefix="tn" steps={[
         ["state[\"spell\"]", "is a spell ready?", false],
         ["arena.telegraph", "the ogre's move", false],
@@ -638,7 +638,7 @@ export function GraphDefinition() {
   );
   return (
     <svg viewBox="0 0 680 300" role="img"
-         aria-label="The arena workflow graph. START goes to enter, which fans out to read_card and tick. Card branch: read_card routes again back to itself after a misread, or stored to rest, where the branch ends. Fight loop: tick routes next back to itself, read to read_card after a cast, and done to summarize, then bard, then finish.">
+         aria-label="The arena workflow graph. START goes to enter, which fans out to read_card and tick. Card reader: read_card routes again back to itself after a misread, or stored to rest, where it ends. Fight loop: tick routes next back to itself, read to read_card after a cast, and done to summarize, then bard, then finish.">
       <defs><Arrow id="gd-a" color={LINE} /><Arrow id="gd-b" color={ACCENT} /></defs>
 
       <Box x={8} y={132} w={60} h={36} title="START" />
@@ -649,18 +649,18 @@ export function GraphDefinition() {
       <line x1="168" y1="140" x2="216" y2="72" stroke={LINE} markerEnd="url(#gd-a)" />
       <line x1="168" y1="160" x2="216" y2="214" stroke={ACCENT} markerEnd="url(#gd-b)" />
       <text x={150} y={104} style={faint}>fan-out</text>
-      <text x={14} y={62} style={faint}>card branch</text>
+      <text x={14} y={62} style={faint}>card reader</text>
       <text x={14} y={76} style={faint}>Gemini Decisions</text>
       <text x={14} y={236} style={accentFaint}>fight loop</text>
       <text x={14} y={250} style={accentFaint}>every tick</text>
 
-      {/* card branch */}
+      {/* card reader */}
       <Box x={218} y={46} w={150} h={46} title="read_card" note="spell card as PNG" dashed />
       <path d="M260 46 C 260 10, 330 10, 330 44" fill="none" stroke={LINE} markerEnd="url(#gd-a)" />
       {route(295, 12, '"again"')}
       <line x1="368" y1="69" x2="436" y2="69" stroke={LINE} markerEnd="url(#gd-a)" />
       {route(402, 61, '"stored"')}
-      <Box x={438} y={46} w={110} h={46} title="rest" note="branch ends" />
+      <Box x={438} y={46} w={110} h={46} title="rest" note="reader ends" />
 
       {/* fight loop */}
       <Box x={218} y={196} w={150} h={46} title="tick" note="decision model" accent />
@@ -722,7 +722,7 @@ export function WorkflowModeStructure() {
       <rect x={528} y={50} width={210} height={118} rx="8"
             fill="color-mix(in srgb, var(--accent) 14%, transparent)" stroke={ACCENT} />
       <text x={633} y={72} textAnchor="middle" style={strong}>agents/arena/agent.py</text>
-      {["fight loop: tick", "card branch: read_card", "end: summarize, bard"].map((t, i) => (
+      {["fight loop: tick", "card reader: read_card", "end: summarize, bard"].map((t, i) => (
         <text key={t} x={633} y={96 + i * 20} textAnchor="middle" style={mono}>{t}</text>
       ))}
 

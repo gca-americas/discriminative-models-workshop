@@ -25,12 +25,12 @@ The workflow gives each task to the model that fits it:
 - **Your decision model fights.** Every tick, one call, one decision. This is
   the model you chose in step 2, with the same questions as step 5. The loop
   never waits for the card.
-- **Gemini Decisions reads the spell card.** On its own branch, started at
+- **Gemini Decisions reads the spell card.** In the background, starting at
   the bell, the workflow takes the card off the arena's screen as an image
   and asks four choice questions about it: the color, and the shape in each
   position. The arena judges the reading against the card's answer, which
-  never leaves the server. After each cast a new card appears, and the branch
-  reads that one too.
+  never leaves the server. After each cast a new card appears, and the card
+  reader reads that one too.
 - **Code holds the rules.** `choose()` casts the spell the moment the model
   reports an opening. The words of the spell are a fixed line per element,
   because a decision model picks from options and does not write.
@@ -41,7 +41,7 @@ The workflow gives each task to the model that fits it:
 :::
 :::
 
-:::section kicker="Architecture" headline="A loop, and a branch beside it"
+:::section kicker="Architecture" headline="A loop, and a card reader alongside it"
 This is an ADK **Workflow**: a graph of nodes joined by edges. A node is a
 plain Python function or an LLM agent. An edge from one node to a *tuple* of
 nodes is a fan-out: both start, at the same time. A node that returns an
@@ -57,14 +57,14 @@ At the bell the graph fans out to `read_card` and `tick`. After each exchange
 | Route | When | Goes to |
 |---|---|---|
 | `"next"` | The fight goes on | `tick` again |
-| `"read"`, with `"next"` | A spell was just cast, so a new card is on the screen | `read_card`, on its own branch |
+| `"read"`, with `"next"` | A spell was just cast, so a new card is on the screen | `read_card`, alongside the fight |
 | `"done"` | Someone is at 0 HP, or tick 60 | `summarize`, then `bard` |
 
-The two branches never call each other. They share **state**: `read_card`
+The fight and the card reader never call each other. They share **state**: `read_card`
 writes the spell into state, and each `tick` looks there and offers `cast`
 once it has arrived.
 
-:::figure id="card-alongside" caption="Both branches run on one event loop. While one waits for its model, the other runs, so reading a card never holds up a tick."
+:::figure id="card-alongside" caption="The fight and the card reader run on one event loop. While one waits for its model, the other runs, so reading a card never holds up a tick."
 :::
 
 :::key

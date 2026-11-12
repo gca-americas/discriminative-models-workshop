@@ -5,7 +5,7 @@ to this server over HTTP, like any other client:
 
   tick        asks for each move, asks the decision model, and posts the
               decision to /api/fight/respond
-  read_card   on its own branch: fetches the spell card image, asks Gemini
+  read_card   alongside the fight: fetches the spell card image, asks Gemini
               Decisions what is on it, and posts the reading to
               /api/spell/sung to be judged here
 

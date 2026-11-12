@@ -18,7 +18,7 @@ root_agent = Workflow(
 A tuple as a *target* is a fan-out: both nodes start. A tuple as an *edge* is
 a chain. A dict maps route names to nodes. `tick → tick` is the fight loop.
 `"read"` starts the card reader again after a spell is cast, `"again"` does
-the same after a misread, and `"stored": rest` lets that branch end quietly,
+the same after a misread, and `"stored": rest` lets the card reader end quietly,
 with no output, once the spell is in state. ADK requires at least one routed
 edge in a cycle, so an unconditional loop is rejected before it can run
 forever.

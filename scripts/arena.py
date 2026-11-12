@@ -8,7 +8,7 @@ If the arena app is running (step 3), the workflow plays on its screen and
 this prints the same fight as a timeline. If not, it plays in this process.
 Every line is stamped with seconds since the bell. The decision model you
 chose in step 2 answers each tick. Gemini Decisions reads the spell card on
-its own branch while the fight goes on, and a later tick can cast it. Gemini tells the tale at
+alongside the fight, and a later tick can cast it. Gemini tells the tale at
 the end.
 """
 

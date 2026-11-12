@@ -5,7 +5,7 @@
     It loops on itself until the fight ends, and never waits for the card.
   * `read_card` fetches the spell card the screen is showing, as an image, and
     asks Gemini Decisions four choice questions about it: the color, and the
-    shape in each position. It runs on its own branch, at the same time as the
+    shape in each position. It runs alongside the fight, at the same time as the
     fight. The arena judges the reading and the spell goes into state. The
     next tick sees `cast` among its options.
   * `bard` is Gemini, a language model, once, at the end, where prose is wanted.
@@ -220,8 +220,8 @@ async def read_card(ctx: Context, node_input) -> Event:
     what is on it. One call, four answers. The arena judges the reading against
     the card's answer, which never leaves the server.
 
-    This runs on its own branch. While it awaits the model, the fight keeps
-    ticking. The result lands in state; there is no output, so this branch
+    This runs alongside the fight. While it awaits the model, the fight keeps
+    ticking. The result lands in state; there is no output, so the card reader
     never ends the graph."""
     arena = _arena(ctx)
     await asyncio.to_thread(arena.forging)
@@ -254,8 +254,8 @@ async def read_card(ctx: Context, node_input) -> Event:
 
 
 def rest(node_input) -> None:
-    """The spell is in state. This branch has nothing to do until the fight
-    casts it and routes "read". Returning None ends the branch without an
+    """The spell is in state. The card reader has nothing to do until the fight
+    casts it and routes "read". Returning None ends it without an
     output, so it is not a second ending of the graph."""
     return None
 
@@ -278,7 +278,7 @@ def enter(ctx: Context, node_input) -> Event:
 async def tick(ctx: Context, node_input) -> Event:
     """One exchange. The decision model reads the telegraph, the arena resolves
     the blow, and the route says where the graph goes next. Async, so the card
-    reader's branch keeps running while this one waits for its model."""
+    reader keeps running in the background while this waits for its model."""
     arena = _arena(ctx)
     spell = ctx.state.get("spell")                   # what read_card left in state, if it has finished
     await asyncio.sleep(TICK_SECONDS)
@@ -315,7 +315,7 @@ async def tick(ctx: Context, node_input) -> Event:
         delta["spell"] = None                        # spent: the screen draws a new card
         delta["spells_cast"] = int(ctx.state.get("spells_cast", 0)) + 1
         if not over:
-            routes.append("read")                    # start reading the new card, on its own branch
+            routes.append("read")                    # start reading the new card, in the background
     if over:
         delta["over"] = True
     routes.append("done" if over else "next")        # and keep fighting, or end
