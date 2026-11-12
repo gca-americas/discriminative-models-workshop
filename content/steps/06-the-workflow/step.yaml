@@ -98,7 +98,8 @@ parts:
             async def read_card(ctx: Context, node_input) -> Event:
                 """Send the spell card to Gemini Decisions and ask what is on it."""
                 png = CARD.read_bytes()
-                client = genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options={"api_version": "v1beta"})
+                client = genai.Client(api_key=os.environ["GEMINI_API_KEY"],
+                                      http_options={"api_version": "v1beta"})
                 started = time.perf_counter()
                 result = await client.aio.decisions.create(
                     model="gemini-decision-1",
@@ -184,8 +185,9 @@ parts:
 
                 {{route}}
 
+                so_far = [*ctx.state.get("decisions", []), decision]
                 return Event(output=decision, route=route,
-                             state={"tick": number, "decisions": [*ctx.state.get("decisions", []), decision]})
+                             state={"tick": number, "decisions": so_far})
           context: |
             QUESTIONS = {
                 "response": {

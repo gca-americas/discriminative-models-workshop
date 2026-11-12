@@ -99,7 +99,7 @@ function SystemComponents() {
       <line x1="42" y1="108" x2="60" y2="108" stroke="var(--hairline-strong)" markerEnd="url(#sc-a)" />
       <rect x={62} y={20} width={498} height={158} rx="12" fill="none" stroke="var(--hairline-strong)" strokeDasharray="4 3" />
       <text x={78} y={44} style={strong}>Workflow</text>
-      <text x={146} y={44} style={faint}>orchestration · parallel branches · shared state (ADK)</text>
+      <text x={146} y={44} style={faint}>orchestration · loops and branches · shared state (ADK)</text>
       {parts.map((p) => (
         <g key={p.title}>
           <Box x={p.x} y={68} w={146} h={62} title={p.title} note={p.note} accent={p.accent} />

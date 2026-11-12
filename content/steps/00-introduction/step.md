@@ -50,7 +50,7 @@ A successful system consists of multiple components:
 
 | Component | Role | In this workshop |
 |---|---|---|
-| **Workflow** | Orchestrates steps, runs branches side by side, holds shared state | An ADK graph workflow |
+| **Workflow** | Orchestrates steps, loops and branches, holds shared state | An ADK graph workflow |
 | **Deterministic code** | Rules, thresholds, validation. Instant, free, and auditable | The game rules, `choose()`, and spell validation |
 | **Discriminative model** | Fast, bounded decisions with a confidence score | Choosing a response every tick, and reading the spell card image |
 | **Language model** | Open-ended text | Gemini writes the tale of the fight |

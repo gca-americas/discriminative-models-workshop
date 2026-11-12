@@ -291,7 +291,8 @@ function drawFight(fight) {
   const status = $("spell-status");
   const frame = $("rune-frame");
   const corner = $("spell-corner");
-  const cornerState = mode === "manual" && running ? "typeable"
+  const cornerState = fight.over ? "empty"           // the fight is over: nothing left to cast
+    : mode === "manual" && running ? "typeable"
     : fight.spell ? "ready" : fight.spellStatus === "forging" ? "forging" : "empty";
   ["empty", "forging", "ready", "typeable"].forEach((c) => corner.classList.toggle(c, c === cornerState));
   const tag = $("spell-tag");

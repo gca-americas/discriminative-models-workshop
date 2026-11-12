@@ -84,7 +84,7 @@ fizzles and burns the spell card. The model is not asked whether it was right.
 ```python
 async def tick(ctx: Context, node_input) -> Event:
     arena = _arena(ctx)
-    spell = ctx.state.get("spell")                # what read_card left in state, if it has finished
+    spell = ctx.state.get("spell")                # what read_card left, if it has finished
     move = await asyncio.to_thread(arena.telegraph)
 
     answered = await decisions.ask_async(         # the model you chose in step 2
@@ -98,7 +98,7 @@ async def tick(ctx: Context, node_input) -> Event:
 
     routes = []                                   # which edges to follow next
     if entry["spell_used"] and not over:
-        routes.append("read")                     # a new card is on the screen: read it, on its own branch
+        routes.append("read")                     # a new card is up: read it too
     routes.append("done" if over else "next")     # and keep fighting, or end
     return Event(output="fight", route=routes, state={"tick": ..., ...})
 ```

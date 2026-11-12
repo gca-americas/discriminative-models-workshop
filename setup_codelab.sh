@@ -172,7 +172,7 @@ for key in GOOGLE_GENAI_USE_VERTEXAI GOOGLE_CLOUD_LOCATION GOOGLE_CLOUD_QUOTA_PR
 done
 set_env GOOGLE_CLOUD_PROJECT "$PROJECT"
 tick "project $PROJECT recorded, for DiffusionGemma if you choose it"
-info "the decision model's settings in .env are left as they are; step 2 sets them"
+info "a decision model already chosen in .env is kept; with none, the next step sets Gemini Decisions"
 
 # ── 4 · the Gemini API key: use the one in .env, or create one in the project ─
 say "3 · Gemini API key"
@@ -193,9 +193,12 @@ retry() {
 }
 key_exists() { gcloud services api-keys describe "$KEY_ID" --project "$PROJECT" --format='value(name)'; }
 make_key() {        # a fixed key ID: a re-run reuses the key instead of making another
-    key_exists >/dev/null 2>&1 || gcloud services api-keys create --project "$PROJECT" \
+    key_exists >/dev/null 2>&1 && return 0
+    gcloud services api-keys create --project "$PROJECT" \
         --key-id "$KEY_ID" --display-name "Jev workshop (Gemini)" \
-        --api-target=service=generativelanguage.googleapis.com -q
+        --api-target=service=generativelanguage.googleapis.com -q && return 0
+    # A key deleted earlier keeps its ID reserved for about 30 days: bring it back.
+    gcloud services api-keys undelete "$KEY_ID" --project "$PROJECT" -q
 }
 
 GEMINI_READY=0

@@ -516,7 +516,7 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
         </p>
       )}
 
-      <div className="mt-4 text-sm font-semibold" style={{ color: "var(--fg)" }}>1. Gemini API key</div>
+      <div className="mt-4 text-sm font-semibold" style={{ color: "var(--fg)" }}>Gemini API key</div>
       <p className="mt-1 text-sm" style={{ color: "var(--fg-muted)" }}>
         Needed for every choice. Step 6 reads the spell card with Gemini Decisions and writes the tale with Gemini.{" "}
         {hasGeminiKey ? (
@@ -542,7 +542,7 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
         style={inputStyle}
       />
 
-      <div className="mt-5 text-sm font-semibold" style={{ color: "var(--fg)" }}>2. Decision model</div>
+      <div className="mt-5 text-sm font-semibold" style={{ color: "var(--fg)" }}>Decision model</div>
       <div className="mt-2 grid gap-2 sm:grid-cols-3">
         {MODEL_OPTIONS.map((option) => {
           const selected = model === option.id;
