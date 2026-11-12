@@ -26,19 +26,21 @@ parts:
             - scripts/first_call.py
           explain: >
             Near the top are `TELEGRAPH`, what the ogre just did, `RESPONSES`,
-            the five responses, and `REQUEST`, what the script sends. Two
-            parts are missing, each marked `TODO`. You assemble them next. The
-            rest of the script builds the SDK's questions from `REQUEST` and
-            prints the answers.
+            the five responses, `SITUATION`, what the model judges, and
+            `QUESTIONS`, what it is asked. Two parts are missing, each marked
+            `TODO`. You assemble them next. The rest of the script calls
+            `ask(about=SITUATION, questions=QUESTIONS)`, which sends the
+            request with the SDK for your model, and prints the answers.
         - kind: assemble
           id: fill-request
           title: Assemble the request
           file: scripts/first_call.py
-          symbols: [TELEGRAPH, REQUEST]
+          symbols: [TELEGRAPH, QUESTIONS]
           explain: >
-            Start with the second block, `REQUEST`: build the `"response"`
+            Start with the last block, `QUESTIONS`: build the `"response"`
             question, its type and the criteria the model chooses from. Then,
             in the first block, drag in what the ogre just did as `TELEGRAPH`.
+            The questions are the same for every model.
             Any of the moves works. Check and save when you are done.
           template: |
             TELEGRAPH = {{telegraph}}
@@ -54,23 +56,22 @@ parts:
             }
 
             {{/fold}}
-            # The request, as JSON. This is the whole API: some state, some questions.
-            REQUEST = {
-                "state": {
-                    "opponent": "a nine-foot ogre with a spiked club, thick hide, and a short temper",
-                    "telegraph": TELEGRAPH,
+            # What the model judges: the situation, in plain data.
+            SITUATION = {
+                "opponent": "a nine-foot ogre with a spiked club, thick hide, and a short temper",
+                "telegraph": TELEGRAPH,
+            }
+
+            # The questions about it. Each has a name, a type and instructions.
+            QUESTIONS = {
+                "response": {
+                    {{kind}}
+                    "instructions": "The opponent has just done this. What is the right response?",
+                    {{criteria}}
                 },
-                "model": "jev-latest",
-                "questions": {
-                    "response": {
-                        {{kind}}
-                        "instructions": "The opponent has just done this. What is the right response?",
-                        {{criteria}}
-                    },
-                    "exposed": {
-                        "type": "noul",
-                        "instructions": "Is the opponent exposed to a counter-attack right now?",
-                    },
+                "exposed": {
+                    "type": "noul",
+                    "instructions": "Is the opponent exposed to a counter-attack right now?",
                 },
             }
           slots:
@@ -109,7 +110,7 @@ parts:
             - id: telegraph-criteria
               code: '"criteria": TELEGRAPH,'
               why: >
-                The telegraph is already in `state`. The criteria are the
+                The telegraph is already in `SITUATION`. The criteria are the
                 options to choose from: the five `RESPONSES`.
             - id: staggers
               code: '"The ogre staggers, off balance, its guard wide open."'
@@ -137,11 +138,12 @@ parts:
           expect:
             - python3 scripts/first_call.py
           explain: >
-            Run `python3 scripts/first_call.py`. It prints the request it
-            sent, the response as it came back, then one line per answer, such
+            Run `python3 scripts/first_call.py`. It prints the request as it
+            goes out to your model, with its URL, the response as it came
+            back, then one line per answer, such
             as `response → strike` and `exposed → 0.97`. Drag another move into
             `TELEGRAPH`, check and save, and run it again to see the answers
-            move.
+            move. Add `--curl` to see the raw request for your model.
     checks:
       - id: first-call
         label: The request has a telegraph and a response question, and the model answered
@@ -151,7 +153,7 @@ parts:
         hint: >
           No `response →` line means a TODO is still open: assemble
           `TELEGRAPH` and the response question above, and save. If the call fails, the
-          script prints the error. A 401 means the Jev key is wrong. A connection error means the model is not answering:
+          script prints the error. A 401 or 403 means the key for your model is wrong. A connection error means the model is not answering:
           click the model light at the top right to check it.
 
   - id: b
@@ -171,15 +173,16 @@ parts:
           open: app/reflex.py
           stage: 5
           compare: 3
-          highlight: "typesafe_sdk|TypeSafe(Client|APIError|Error)|\\b(Choice|Noul|Score)\\(|system_one\\("
-          highlightLabel: Highlighted lines use the TypeSafe SDK.
+          highlight: "decisions\\.ask\\(|decisions\\.ModelError|\"type\": \"(choice|noul|score)\""
+          highlightLabel: Highlighted lines build the questions and ask the model.
           explain: >
             If the bar above the files says the game is in manual mode, press
             "Update game to Discriminative model mode" first. The files marked
             NEW are what this step adds to the manual version; nothing from
             step 3 changes. `reflex.py` holds the questions and `choose()`,
-            `mode_model.py` asks the model on every tick, and
-            `static/modes/model.js` draws the answer cards on the page.
+            `mode_model.py` asks the model on every tick with
+            `decisions.ask()`, and `static/modes/model.js` draws the answer
+            cards on the page.
         - kind: app
           id: watch
           title: Arena app

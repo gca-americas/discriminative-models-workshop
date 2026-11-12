@@ -50,7 +50,7 @@ const SOUND_FILES = {
   block: "block",            // right call: you counter
   strike: "strike",          // your strike lands in an opening
   hurt: "hurt",              // you take a hit
-  charge: "charge",          // a spell starts: typing, or Gemini reading
+  charge: "charge",          // a spell starts: typing, or the workflow reading the card
   cast: "cast",              // the spell flies
   fizzle: "fizzle",          // a wrong spell
   ready: "ready",            // the workflow's spell is ready
@@ -295,7 +295,7 @@ function drawFight(fight) {
     : fight.spell ? "ready" : fight.spellStatus === "forging" ? "forging" : "empty";
   ["empty", "forging", "ready", "typeable"].forEach((c) => corner.classList.toggle(c, c === cornerState));
   const tag = $("spell-tag");
-  const tagText = { forging: "CASTING SPELL…", ready: "SPELL READY!", typeable: "PICK TO CAST" }[cornerState] || "";
+  const tagText = { forging: "READING CARD…", ready: "SPELL READY!", typeable: "PICK TO CAST" }[cornerState] || "";
   if (tag.textContent !== tagText) {
     tag.textContent = tagText;
     tag.className = `spell-tag ${cornerState}`;
@@ -308,7 +308,7 @@ function drawFight(fight) {
     frame.className = "rune-frame ready";
     $("spell-song").textContent = `“${fight.spell.incantation}”`;
   } else if (fight.spellStatus === "forging") {
-    status.textContent = "SINGING… the spell card is being read";
+    status.textContent = "READING… the spell card is being read";
     status.className = "spell-line forging";
     frame.className = "rune-frame forging";
     $("spell-song").textContent = "";

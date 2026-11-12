@@ -1,13 +1,15 @@
-"""A stand-in for the Discriminative model API, for rehearsing the workshop without a key.
+"""A stand-in for Jev's API, for testing the workshop's TypeSafe SDK path without a key.
+
+A developer tool. The workshop itself never uses it: students choose Jev,
+DiffusionGemma or Gemini Decisions in step 2.
 
 It speaks the same HTTP contract as https://api.typesafe.ai/v1/systemone --
 same request shape, same answer shape -- but the answers come from a keyword
 lexicon, not from a model. It is good enough to walk through every exercise and
 see the plumbing work. It is not the Discriminative model: the numbers it returns mean nothing.
 
-Start it on its own:      python3 scripts/fake_jev.py
-Point the SDK at it:      TYPESAFE_BASE_URL=http://127.0.0.1:4811
-Or let the workbench:     JEV101_REHEARSAL=1 scripts/start.sh
+Start it:                 python3 scripts/fake_jev.py
+Point the SDK at it:      TYPESAFE_BASE_URL=http://127.0.0.1:4811 TYPESAFE_API_KEY=test JEV101_MODEL=
 """
 
 from __future__ import annotations

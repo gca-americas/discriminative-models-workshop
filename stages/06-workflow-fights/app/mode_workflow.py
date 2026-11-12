@@ -3,10 +3,11 @@
 The ADK workflow (agents/arena/agent.py) plays in its own process and talks
 to this server over HTTP, like any other client:
 
-  thread 2, fast   asks for each move, asks the Discriminative model, and
-                   posts the decision to /api/fight/respond
-  thread 1, slow   fetches the spell card image, has Gemini sing the spell,
-                   and posts it to /api/spell/sung to be judged here
+  tick        asks for each move, asks the decision model, and posts the
+              decision to /api/fight/respond
+  read_card   on its own branch: fetches the spell card image, asks Gemini
+              Decisions what is on it, and posts the reading to
+              /api/spell/sung to be judged here
 
 The page only draws. Start on the page launches the workflow with
 /api/workflow/start; it is the same program as `python3 scripts/arena.py`.
@@ -82,8 +83,8 @@ def status(arena=None, body=None):
 # ── what the workflow posts ─────────────────────────────────────────────────
 
 def respond(arena, body: dict):
-    """Thread 2's decision for the move on screen, with the model's answers,
-    so the page can draw the same cards as in step 5."""
+    """The workflow's decision for the move on screen, with the model's
+    answers, so the page can draw the same cards as in step 5."""
     action = str(body.get("action", "wait"))
     if action not in engine.RESPONSES and action != "cast":
         return 400, {"error": f"unknown action {action}"}
@@ -95,7 +96,7 @@ def respond(arena, body: dict):
     if body.get("answers"):
         asked = {"decision": decision, "answers": body["answers"], "model": body.get("model", ""),
                  "latencyMs": body.get("latencyMs", 0), "inputTokens": body.get("inputTokens", 0),
-                 "costUsd": 0.0}
+                 "costUsd": float(body.get("costUsd", 0.0))}
         arena.totals["calls"] += 1
         arena.totals["ms"] += int(body.get("latencyMs", 0))
         arena.totals["tokens"] += int(body.get("inputTokens", 0))
@@ -106,24 +107,25 @@ def respond(arena, body: dict):
 
 
 def forging(arena, body: dict):
-    """Thread 1 has started reading the spell card."""
+    """The workflow has started reading the spell card."""
     if arena.fight.spell is None:
         arena.fight.spell_status = "forging"
     return 200, {"fight": arena.fight.snapshot()}
 
 
 def sung(arena, body: dict):
-    """Thread 1's spell, judged here against the card's hidden answer."""
+    """The workflow's reading of the card, judged here against the card's hidden answer."""
     spell = arena.fight.sing(body)
+    reading = body.get("reading") or {}
+    if reading.get("answers"):
+        # What Gemini Decisions answered about the card, for the page to draw.
+        arena.fight.extra["lastRead"] = {
+            "n": len(arena.fight.castings), "tick": arena.fight.tick,
+            "answers": reading["answers"], "model": reading.get("model", ""),
+            "latencyMs": reading.get("latencyMs", 0), "inputTokens": reading.get("inputTokens", 0),
+            "verdict": spell["verdict"], "damage": spell["damage"],
+        }
     return 200, {"spell": spell, "fight": arena.fight.snapshot()}
-
-
-def check(arena, body: dict):
-    """Thread 2 looked at the spell slot after an exchange. The page pings the
-    spell card in the corner each time."""
-    arena.fight.extra["lastCheck"] = {"tick": arena.fight.tick, "ready": bool(body.get("ready")),
-                                      "waited": body.get("waited"), "name": body.get("name")}
-    return 200, {"fight": arena.fight.snapshot()}
 
 
 ROUTES = {
@@ -132,6 +134,5 @@ ROUTES = {
     ("POST", "/api/workflow/stop"): stop,
     ("POST", "/api/spell/forging"): forging,
     ("POST", "/api/spell/sung"): sung,
-    ("POST", "/api/spell/check"): check,
 }
 UNLOCKED = {("GET", "/api/workflow"), ("POST", "/api/workflow/start"), ("POST", "/api/workflow/stop")}

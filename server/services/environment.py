@@ -1,16 +1,14 @@
 """What the workbench knows about the student's setup.
 
-Two keys matter in this workshop: one for the Discriminative model (TypeSafe) and one for Gemini.
-They are read from the process environment and from a `.env` file at the root
-of the workshop, the same file the scripts and the app read, so setting a key
-once is enough. Nothing here is configured by hand beyond that.
+Two keys matter in this workshop: a TypeSafe key, when the decision model is
+Jev, and a Gemini API key, for Gemini Decisions and for step 6. They are read
+from the process environment and from a `.env` file at the root of the
+workshop, the same file the scripts and the app read, so setting a key once is
+enough. Nothing here is configured by hand beyond that.
 
-Discriminative model calls can also go to a self-hosted, Discriminative-model-compatible server such as
-OpenJev on DiffusionGemma: set TYPESAFE_BASE_URL to it in `.env`.
-
-There is also a rehearsal mode. `JEV101_REHEARSAL=1` points every script at a
-small local stand-in for the Discriminative model API (scripts/fake_jev.py), so the workshop can
-be walked through on a plane. The page says so when it is on.
+`JEV101_MODEL=gemini` in `.env` makes Gemini Decisions the decision model.
+Otherwise calls go to Jev, or to a Jev-compatible server such as DiffusionGemma
+when TYPESAFE_BASE_URL names one.
 """
 
 from __future__ import annotations
@@ -29,11 +27,10 @@ from typing import Any
 from server import config
 
 ENV_FILE = config.ROOT / ".env"
-FAKE_JEV_PORT = int(os.environ.get("JEV101_FAKE_PORT", "4811"))
-FAKE_JEV_URL = f"http://127.0.0.1:{FAKE_JEV_PORT}"
 
 _CACHE: dict[str, Any] = {"at": 0.0, "value": None}
 VERIFIED = config.ROOT / "runs" / "jev-verified"   # written by scripts/verify_jev_key.py
+GEMINI_VERIFIED = config.ROOT / "runs" / "gemini-verified"   # written by scripts/verify_gemini_key.py
 _verifying: set[str] = set()                        # key hashes being checked now
 MODEL_SETUP: dict[str, str] = {}                    # the step 2 run: {"token", "model"}
 _TTL = 5.0
@@ -67,8 +64,12 @@ def load_dotenv(path: Path = ENV_FILE) -> None:
             _FROM_FILE[key] = value
 
 
-def rehearsal() -> bool:
-    return os.environ.get("JEV101_REHEARSAL", "") not in ("", "0", "false")
+def gemini_key() -> str:
+    return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
+
+
+def gemini_chosen() -> bool:
+    return os.environ.get("JEV101_MODEL", "").strip().lower() == "gemini"
 
 
 def _answers(url: str, timeout: float = 1.0) -> bool:
@@ -79,24 +80,32 @@ def _answers(url: str, timeout: float = 1.0) -> bool:
         return False
 
 
-def _jev_verified(key: str) -> bool:
+def _key_verified(key: str, marker: Path, variable: str, script: str) -> bool:
     """Whether this key has answered a real request. A key nobody has checked
     yet (written into .env by hand, say) is checked once, in the background."""
     digest = hashlib.sha256(key.encode()).hexdigest()
     try:
-        if VERIFIED.read_text().strip() == digest:
+        if marker.read_text().strip() == digest:
             return True
     except OSError:
         pass
     if digest not in _verifying:
         _verifying.add(digest)
-        env = {**os.environ, "TYPESAFE_API_KEY": key}
-        threading.Thread(target=_verify, args=(env,), daemon=True).start()
+        env = {**os.environ, variable: key}
+        threading.Thread(target=_verify, args=(env, script), daemon=True).start()
     return False
 
 
-def _verify(env: dict[str, str]) -> None:
-    subprocess.run([sys.executable, str(config.ROOT / "scripts" / "verify_jev_key.py")],
+def _jev_verified(key: str) -> bool:
+    return _key_verified(key, VERIFIED, "TYPESAFE_API_KEY", "verify_jev_key.py")
+
+
+def _gemini_verified(key: str) -> bool:
+    return _key_verified(key, GEMINI_VERIFIED, "GEMINI_API_KEY", "verify_gemini_key.py")
+
+
+def _verify(env: dict[str, str], script: str = "verify_jev_key.py") -> None:
+    subprocess.run([sys.executable, str(config.ROOT / "scripts" / script)],
                    env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=60)
     _CACHE["value"] = None
 
@@ -128,13 +137,18 @@ def _server_ready(url: str, wait: bool = False) -> bool:
 def check_server_now() -> None:
     """Look at the model server now, and wait for the answer."""
     base = os.environ.get("TYPESAFE_BASE_URL", "").rstrip("/")
-    if base:
+    if base and not gemini_chosen():
         _server_ready(base, wait=True)
 
 
 def verify_jev_now() -> None:
     """Check the Jev key now, and wait for the answer."""
     _verify({**os.environ})
+
+
+def verify_gemini_now() -> None:
+    """Check the Gemini API key now, and wait for the answer."""
+    _verify({**os.environ}, "verify_gemini_key.py")
 
 
 def _setting_up() -> str:
@@ -151,13 +165,12 @@ def discover(force: bool = False) -> dict[str, Any]:
 
     load_dotenv()
     jev_key = bool(os.environ.get("TYPESAFE_API_KEY"))
-    gemini_key = bool(os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"))
-    vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true") \
-        and bool(os.environ.get("GOOGLE_CLOUD_PROJECT"))
+    google_key = gemini_key()
+    gemini_ready = bool(google_key) and _gemini_verified(google_key)
 
     base = os.environ.get("TYPESAFE_BASE_URL", "")
-    if rehearsal():
-        jev_mode = "rehearsal" if _answers(FAKE_JEV_URL) else "rehearsal (stand-in not running)"
+    if gemini_chosen():
+        jev_mode = "gemini decisions" if google_key else "gemini decisions, no key"
     elif base and os.environ.get("JEV101_GEMMA_VM"):
         jev_mode = "gemma on vm"            # DiffusionGemma, deployed by scripts/setup_gemma.sh
     elif base and ".run.app" in base:
@@ -167,10 +180,10 @@ def discover(force: bool = False) -> dict[str, Any]:
     else:
         jev_mode = "live" if jev_key else "no key"
 
-    # Green means checked and answering: rehearsal always, a model server when
-    # its health check answers, Jev once the key has answered a real request.
-    if rehearsal():
-        ready = True
+    # Green means checked and answering: a model server when its health check
+    # answers, Jev or Gemini Decisions once the key has answered a real request.
+    if gemini_chosen():
+        ready = gemini_ready
     elif jev_mode == "live":
         ready = _jev_verified(os.environ["TYPESAFE_API_KEY"])
     elif jev_mode == "no key":
@@ -183,10 +196,9 @@ def discover(force: bool = False) -> dict[str, Any]:
         "jevKey": jev_key,
         "modelReady": ready,
         "modelSetup": _setting_up(),
-        "rehearsal": rehearsal(),
-        "gemini": "vertex" if vertex else "api key" if gemini_key else "no key",
-        "geminiReady": vertex or gemini_key,
-        "model": os.environ.get("TYPESAFE_DEFAULT_MODEL", "jev-latest"),
+        "gemini": "api key" if google_key else "no key",
+        "geminiReady": gemini_ready,
+        "model": "gemini-decision-1" if gemini_chosen() else os.environ.get("TYPESAFE_DEFAULT_MODEL", "jev-latest"),
         "project": os.environ.get("GOOGLE_CLOUD_PROJECT", ""),
         "envFile": str(ENV_FILE.relative_to(config.ROOT)) if ENV_FILE.is_file() else "",
     }
@@ -203,20 +215,14 @@ def as_substitutions() -> dict[str, str]:
         "JEV_MODEL": env["model"],
         "JEV_MODE": env["jev"],
         "APP_PORT": os.environ.get("JEV101_APP_PORT", "8090"),
-        "FAKE_JEV_URL": FAKE_JEV_URL,
     }
 
 
 def script_env() -> dict[str, str]:
-    """The environment a script, probe or the app runs with. In rehearsal mode
-    the SDK is pointed at the local stand-in through the variable it already
-    honours, so no script has to know the mode exists."""
+    """The environment a script, probe or the app runs with."""
     load_dotenv()
     env = {**os.environ, "PYTHONUNBUFFERED": "1"}
-    if rehearsal():
-        env["TYPESAFE_BASE_URL"] = FAKE_JEV_URL
-        env.setdefault("TYPESAFE_API_KEY", "rehearsal")
-    elif env.get("TYPESAFE_BASE_URL") and "api.typesafe.ai" not in env["TYPESAFE_BASE_URL"] \
+    if env.get("TYPESAFE_BASE_URL") and "api.typesafe.ai" not in env["TYPESAFE_BASE_URL"] \
             and ".run.app" not in env["TYPESAFE_BASE_URL"]:
         env.setdefault("TYPESAFE_API_KEY", "self-hosted")   # the SDK wants one; the server ignores it
     # A Cloud Run model needs a Google identity token; each process fetches

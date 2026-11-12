@@ -25,15 +25,21 @@ and it does not report how sure it is.
 :::section kicker="Discriminative models" headline="Models built for decisions"
 A discriminative model answers a typed question with a probability for each
 allowed option, in a single pass. It does not generate text. This workshop
-provides two options to run:
+provides three options to run:
+
+:::figure id="three-models" caption="Three decision models and the two SDKs that reach them. The questions and the answers have the same shape on all three."
+:::
 
 | Model | Provider | Where the model runs in this workshop |
 |---|---|---|
 | **Jev** | TypeSafe AI | TypeSafe's hosted service, called with an API key |
 | **DiffusionGemma** | Google, open weights | Self-hosted on a GPU VM in your own Google Cloud project |
+| **Gemini Decisions** | Google | Google's hosted service on the Gemini Developer API, called with an API key |
 
-The models can be swapped based on your needs; the code that connects to
-them does not need to change.
+The models can be swapped based on your needs. Jev and DiffusionGemma are
+called with the TypeSafe SDK, and Gemini Decisions with the Google Gen AI SDK.
+The workshop keeps both calls in one file, so the rest of the code does not
+change when you switch.
 :::
 
 :::section kicker="System design" headline="Combine components"
@@ -44,10 +50,10 @@ A successful system consists of multiple components:
 
 | Component | Role | In this workshop |
 |---|---|---|
-| **Workflow** | Orchestrates steps, runs branches in parallel, holds shared state | An ADK graph workflow |
+| **Workflow** | Orchestrates steps, runs branches side by side, holds shared state | An ADK graph workflow |
 | **Deterministic code** | Rules, thresholds, validation. Instant, free, and auditable | The game rules, `choose()`, and spell validation |
-| **Discriminative model** | Fast, bounded decisions with a confidence score | Choosing a response every tick |
-| **Language model** | Perception and generation: images and open-ended text | Gemini reads the spell card image and writes the spell |
+| **Discriminative model** | Fast, bounded decisions with a confidence score | Choosing a response every tick, and reading the spell card image |
+| **Language model** | Open-ended text | Gemini writes the tale of the fight |
 :::
 
 :::section kicker="Approach" headline="A game as the example"
@@ -59,13 +65,19 @@ shows you how to combine both types of model to make your character win.
 
 Each element of the game maps to a real system:
 
+:::figure id="game-mapping" caption="Each part of the game stands for a part of a production system."
+:::
+
 - **The opponent's move** is an incoming event, like a request or a
   transaction.
 - **The response** is a bounded decision, made by the discriminative model
   and checked by code.
-- **The spell card** is unstructured input that needs a language model to read.
-- **The match** is the workflow, running fast and slow work at their own
-  speeds.
+- **The spell card** is an image. Its color and shapes come from a fixed set,
+  so reading it is also a bounded decision, for a discriminative model that
+  takes images.
+- **The match** is the workflow, a loop that calls the right model at each
+  step.
+- **The tale of the fight** is open-ended text, written by a language model.
 
 The focus is on combining the four components and piecing them together to
 build a fast and smart system.
@@ -74,15 +86,14 @@ build a fast and smart system.
 :::section kicker="Outcomes" headline="What you will learn"
 - Explain how discriminative (System One) and generative (System Two) models
   differ, and when to use each.
-- Describe how Jev and DiffusionGemma are served, and set one up for the
-  workshop, including DiffusionGemma on a Compute Engine GPU VM.
+- Describe how Jev, DiffusionGemma and Gemini Decisions are served, and set
+  one up for the workshop.
 - Write Choice, Score, and Noul questions, and interpret probabilities and
   confidence.
 - Use thresholds in deterministic code to turn probabilities into actions.
-- Build a request with the TypeSafe SDK, then let the model choose every move
-  in a game.
-- Build a slow branch, where Gemini reads an image, and a fast branch, where
-  the discriminative model decides in a loop, and run each on its own.
-- Join both branches in an ADK graph workflow that shares state on one event
-  loop, so slow work never holds up fast decisions.
+- Build a request, send it with the TypeSafe SDK or the Google Gen AI SDK,
+  then let the model choose every move in a game.
+- Read an image with Gemini Decisions by asking choice questions about it.
+- Build an ADK graph workflow that fights in a loop, reads the spell card on
+  a branch beside it, and hands the result to Gemini for a written summary.
 :::

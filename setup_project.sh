@@ -69,7 +69,7 @@ if [ -f "$PROJECT_FILE" ]; then
             say "Project ready: $EXISTING"
             printf '  Next:  ./setup_codelab.sh\n'
     printf '  A new project usually has no GPU quota. DiffusionGemma needs one GPU (a quota\n'
-    printf '  request); Jev and rehearsal mode work straight away.\n\n'
+    printf '  request); Jev and Gemini Decisions work straight away.\n\n'
             exit 0
         fi
         warn "$EXISTING is missing or has no billing — creating a fresh project."
@@ -90,7 +90,7 @@ BILLING_LIST="$(gcloud billing accounts list \
 
 if [ -z "$BILLING_LIST" ]; then
     die "No open billing account on this Google account." \
-        "This lab calls Gemini on Vertex AI, which needs billing enabled." \
+        "DiffusionGemma runs on a GPU VM in this project, which needs billing enabled." \
         "" \
         "If you were given a Google Cloud credit for this session, claim it" \
         "first — it takes about a minute and creates the billing account for" \
@@ -230,4 +230,4 @@ tick "$PROJECT_ID is serving"
 say "Project ready: $PROJECT_ID"
 printf '  Next:  ./setup_codelab.sh\n'
 printf '  A new project usually has no GPU quota. DiffusionGemma needs one GPU (a quota\n'
-printf '  request); Jev and rehearsal mode work straight away.\n\n'
+printf '  request); Jev and Gemini Decisions work straight away.\n\n'

@@ -28,4 +28,4 @@ if [ -f .env ]; then
   grep -vE '^(TYPESAFE_BASE_URL|JEV101_GEMMA_VM|JEV101_GEMMA_ZONE|JEV101_GEMMA_PROJECT|JEV101_JEV_AUTH)=' .env > .env.tmp || true
   mv .env.tmp .env
 fi
-echo "Removed. The workshop falls back to the Discriminative model on TypeSafe (with a key) or rehearsal mode."
+echo "Removed. Choose Jev or Gemini Decisions in step 2, or run scripts/setup_model.sh."

@@ -1,4 +1,4 @@
-"""Run the Getting started with Discriminative (Jev/DiffusionGemma) models workbench.
+"""Run the Getting started with Discriminative models (Jev/Gemini Decisions) workbench.
 
     python serve.py              port 4900 (JEV101_PORT to change)
     python serve.py --reload     for development

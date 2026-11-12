@@ -1,6 +1,6 @@
 """Is this machine ready for the workshop? Says what is and is not set up.
 
-Exit code 0 when the Discriminative model can be called (a key, or rehearsal mode). The verify panel
+Exit code 0 when the decision model can be called. The verify panel
 uses that; a person can just read the lines.
 """
 
@@ -39,6 +39,7 @@ def main() -> int:
     load_env()
     print(f"python          {sys.version.split()[0]}  ({sys.executable})")
     print(f"typesafe-sdk    {version('typesafe-sdk')}")
+    print(f"google-genai    {version('google-genai')}")
     print(f"google-adk      {version('google-adk')}")
     print()
 
@@ -48,9 +49,13 @@ def main() -> int:
     base = os.environ.get("TYPESAFE_BASE_URL", "")
     key = os.environ.get("TYPESAFE_API_KEY", "")
     backend = jev_backend(base)
-    if backend == "rehearsal":
-        print(f"model           rehearsal — calls go to {base}, a word list, not a model")
-        jev_ok = True
+    gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
+    if backend == "gemini":
+        if gemini_key:
+            print(f"model           Gemini Decisions — GEMINI_API_KEY {mask(gemini_key)} → generativelanguage.googleapis.com")
+        else:
+            print("model           Gemini Decisions, but there is no GEMINI_API_KEY. Add it in step 2.")
+        jev_ok = bool(gemini_key)
     elif backend == "cloud-run":
         print(f"model           DiffusionGemma on Cloud Run — {base}")
         try:
@@ -74,7 +79,7 @@ def main() -> int:
             jev_ok = False
     elif backend == "self-hosted":
         print(f"model           self-hosted — calls go to {base}")
-        print("                (a Discriminative-model-compatible server, e.g. OpenJev on DiffusionGemma)")
+        print("                (a Jev-compatible server, e.g. OpenJev on DiffusionGemma)")
         jev_ok = True
     elif key:
         print(f"model           live — TYPESAFE_API_KEY {mask(key)} → api.typesafe.ai")
@@ -83,20 +88,15 @@ def main() -> int:
         print("model           not chosen yet. Choose it in step 2, or run scripts/setup_model.sh.")
         print("                A Jev key comes from https://console.typesafe.ai/login?returnTo=%2Fkeys")
         jev_ok = False
-    print(f"model id        {os.environ.get('TYPESAFE_DEFAULT_MODEL', 'jev-latest')}")
+    print(f"model id        {'gemini-decision-1' if backend == 'gemini' else os.environ.get('TYPESAFE_DEFAULT_MODEL', 'jev-latest')}")
 
-    vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true")
-    project = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
-    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-    if vertex and project:
-        print(f"gemini          Vertex AI · project {project} · location "
-              f"{os.environ.get('GOOGLE_CLOUD_LOCATION', 'global')}")
-    elif api_key:
-        print(f"gemini          AI Studio key {mask(api_key)}")
+    if gemini_key:
+        print(f"gemini          API key {mask(gemini_key)} · reads the spell card and writes the tale in step 6")
     else:
-        print("gemini          not set up yet — only step 6 needs it. Run ./setup_codelab.sh,")
-        print("                which points Gemini at Vertex AI in your project.")
-    print(f"gemini model    {os.environ.get('JEV101_GEMINI_MODEL', 'gemini-flash-latest')}")
+        print("gemini          not set up yet — step 6 needs a Gemini API key. Add it in step 2,")
+        print("                or create one at https://aistudio.google.com/apikey")
+    print(f"gemini models   gemini-decision-1 (spell card) · "
+          f"{os.environ.get('JEV101_GEMINI_MODEL', 'gemini-flash-latest')} (tale)")
     print()
     print("model: ready" if jev_ok else "model: not ready")
     return 0 if jev_ok else 1

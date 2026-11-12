@@ -39,7 +39,7 @@
   // Where the model runs, in the pill at the top right.
   if (setup) {
     $("setup").hidden = false;
-    $("setup").textContent = setup.backend === "rehearsal" ? "rehearsal · fake Discriminative model"
+    $("setup").textContent = setup.backend === "gemini" ? (setup.hasKey ? "Gemini Decisions · gemini-decision-1" : "no GEMINI_API_KEY")
       : setup.backend === "cloud-run" ? "DiffusionGemma · Cloud Run"
       : setup.backend === "gemma-vm" ? "DiffusionGemma · GPU VM"
       : setup.backend === "self-hosted" ? "self-hosted · " + setup.baseUrl.replace(/^https?:\/\//, "")
@@ -78,7 +78,7 @@
       `<span>model <b>${result.model || "?"}</b></span>`,
       `<span>latency <b>${result.latencyMs} ms</b></span>`,
       `<span>input tokens <b>${result.inputTokens}</b></span>`,
-      `<span>this fight <b>${totals.calls} calls · ${totals.ms} ms · $${(totals.tokens * 0.042 / 1e6).toFixed(6)}</b></span>`,
+      `<span>this fight <b>${totals.calls} calls · ${totals.ms} ms · $${(totals.tokens * (setup.pricePerMillion ?? 0.042) / 1e6).toFixed(6)}</b></span>`,
     ].join("");
   });
 

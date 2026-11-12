@@ -1,11 +1,11 @@
-# Getting started with Discriminative (Jev/DiffusionGemma) models
+# Getting started with Discriminative models (Jev/Gemini Decisions)
 
-A one-hour workshop on the **Discriminative model**, TypeSafe AI's System One decision model, and
-on putting it next to Gemini in a Google ADK workflow. Six steps, about sixty
-minutes, built around a fighting game. The student fights the ogre by hand
-first, then hands the reflexes to the Discriminative model, then watches an ADK workflow win the
-fight with the Discriminative model deciding every tick and Gemini reading spell cards off the screen to
-sing spells.
+A one-hour workshop on discriminative (System One) decision models, and on
+putting one next to Gemini in a Google ADK workflow. It takes about sixty
+minutes and is built around a fighting game. The student fights the ogre by
+hand first, then hands the reflexes to a decision model, then watches an ADK
+workflow win the fight with the decision model deciding every tick, Gemini
+Decisions reading spell cards off the screen, and Gemini writing the tale.
 
 It runs the same way the Cloud 101 workbench does: concepts first on each
 page, the exercise last, and every check asks the machine rather than the
@@ -13,13 +13,24 @@ student.
 
 ## Overview
 
-The Discriminative model (`jev-1.13`, alias `jev-latest`) is a hosted model from TypeSafe AI,
-released September 19, 2026. It does not generate text. You send it **state**
-(text, JSON, or a list) and typed **questions** (`Choice`, `Score`, `Noul`),
-and it returns typed answers with calibrated probabilities, in roughly 70 to
-500 ms, for $0.042 per million input tokens and nothing for output. Its job is
-the decision in front of, between, and behind the language models: routing,
-classification, gating, and here, a fighter's reflexes.
+A discriminative model does not generate text. You send it **state** (text,
+JSON, or a list) and typed **questions** (`Choice`, `Score`, `Noul`), and it
+returns typed answers with calibrated probabilities. Its job is the decision
+in front of, between, and behind the language models: routing, classification,
+gating, and here, a fighter's reflexes.
+
+Step 2 offers these decision models:
+
+- **Jev** (`jev-1.13`, alias `jev-latest`) is a hosted model from TypeSafe AI,
+  released September 19, 2026. It answers in roughly 70 to 500 ms, for $0.042
+  per million input tokens.
+- **DiffusionGemma** is Google's open-weights model. The workshop runs it on a
+  GPU VM in your own project, behind Jev's API.
+- **Gemini Decisions** (`gemini-decision-1`) is Google's hosted model on the
+  Gemini Developer API. It costs $0.10 per million input tokens and has a
+  no-cost tier. It also takes images, which step 6 uses to read spell cards.
+
+Output tokens are free on both hosted models.
 
 ## Setup
 
@@ -35,50 +46,60 @@ it, preferring an event credit account when you have one, and waits until the
 project can serve. Re-running it reuses the project in `~/project_id.txt`. To
 use a project you already have, put its ID in that file and skip this script.
 
-`setup_codelab.sh` asks nothing. It installs uv and the Python packages, enables
-Vertex AI, Compute Engine and IAP, points Gemini at Vertex AI in the project in
-`.env`, makes one real Gemini call with a model the project can call, builds the
-page, starts the workbench in the background and runs `scripts/check_setup.py`.
-Re-running it keeps your exercise files; `scripts/starter.sh` resets them. The
-decision model is chosen in step 2 of the workbench.
+`setup_codelab.sh` reads the project from `~/project_id.txt`. When that file
+is missing it asks for the ID of an existing project and records it. It then
+installs uv and the Python packages, enables Compute Engine and IAP (both for
+DiffusionGemma), records the project in `.env` as `GOOGLE_CLOUD_PROJECT`,
+puts the exercise files in place, builds the page, starts the workbench in the
+background and runs `scripts/check_setup.py`. Re-running it keeps your
+exercise files; `scripts/starter.sh` resets them. The decision model and the
+Gemini API key are set in step 2 of the workbench.
 
-On a laptop, sign in once with `gcloud auth login` and
-`gcloud auth application-default login`, then run the same two scripts.
-`scripts/stop.sh` stops the workbench, and `scripts/start.sh` runs it again in
-the foreground, after a break for example.
+On a laptop, sign in once with `gcloud auth login`, then run the same two
+scripts. `scripts/stop.sh` stops the workbench, and `scripts/start.sh` runs it
+again in the foreground, after a break for example.
 
-Gemini runs on Vertex AI in your project, with your own Google credentials and
-no API key: `GOOGLE_GENAI_USE_VERTEXAI=1`, `GOOGLE_CLOUD_PROJECT` and
-`GOOGLE_CLOUD_LOCATION=global` in `.env`. Setup also checks which model the project can call
-(`scripts/pick_gemini_model.py`): it tries `gemini-flash-latest`, falls back to
-the newest Flash model the project lists, and saves the result as
-`JEV101_GEMINI_MODEL`. The arena workflow and the step 6 branches both read it.
+Everything Gemini uses one `GEMINI_API_KEY`, created at
+https://aistudio.google.com/apikey. Gemini Decisions uses it as a decision
+model, and step 6 uses it to read the spell card (`gemini-decision-1`) and to
+write the tale. Every model choice needs this key because of step 6.
 
-The decision model is chosen on its own, in step 2 of the workbench, or from a
-terminal with `scripts/setup_model.sh`:
+The tale is written by `gemini-flash-latest` unless `JEV101_GEMINI_MODEL` says
+otherwise. When `.env` already holds a working Gemini API key,
+`setup_codelab.sh` runs `scripts/pick_gemini_model.py`, which tries
+`gemini-flash-latest`, falls back to the newest Flash model the key can call,
+and saves the result as `JEV101_GEMINI_MODEL`.
+
+The decision model is chosen in step 2 of the workbench, or from a terminal
+with `scripts/setup_model.sh`:
 
 | Choice | Needs | Setup | Cost |
 |---|---|---|---|
-| **The Discriminative model** (TypeSafe, hosted) | a TypeSafe API key | none | per token, fractions of a cent |
+| **Jev** (TypeSafe, hosted) | a TypeSafe API key (`TYPESAFE_API_KEY`) | none | $0.042 per 1M input tokens |
 | **DiffusionGemma** (Google, open weights) | billing + Compute Engine quota for **1 × NVIDIA L4** | ~15 min, automatic | ~$0.71/h while the VM runs |
-| **Rehearsal** (no model) | nothing | none | none |
+| **Gemini Decisions** (Google, hosted) | a Gemini API key (`GEMINI_API_KEY`) | none | $0.10 per 1M input tokens, with a no-cost tier |
 
-`scripts/setup_model.sh --model jev|gemma|rehearsal --yes` answers for you.
+`scripts/setup_model.sh --model jev|gemma|gemini --yes` answers for you. The
+script records the choice in `.env` as `JEV101_MODEL`.
 
 Each choice is checked before it is kept:
 
 - **Jev.** The key is tried with one real request (`scripts/verify_jev_key.py`).
   A refused key is not saved.
-- **DiffusionGemma.** The GPU quota is checked before anything is created.
-- **If one fails,** setup says why and offers the options not yet tried. If
-  Jev and DiffusionGemma both fail, or nobody is there to answer, it falls
-  back to rehearsal mode. Step 2 runs the script with `--no-fallback` and
-  offers the other options itself; the key is passed in the script's
-  environment, never on its command line.
+- **DiffusionGemma.** The GPU quota is checked before anything is created. A
+  VM from an earlier setup is started again instead of being rebuilt.
+- **Gemini Decisions.** The key is tried with one real request to
+  `gemini-decision-1` (`scripts/verify_gemini_key.py`). A refused key is not
+  saved.
+- **The Gemini API key.** It is checked the same way for Jev and
+  DiffusionGemma, because step 6 needs it.
+- **If one fails,** setup says why and offers the options not yet tried. With
+  nobody there to answer, it tries Gemini Decisions next. Step 2 runs the
+  script with `--no-fallback` and offers the other options itself. Keys are
+  passed in the script's environment, never on its command line.
 
-Rehearsal mode is saved in `.env` (`JEV101_REHEARSAL=1`, with the model address
-pointed at the stand-in), and `scripts/start.sh` starts the stand-in for you.
-`scripts/rehearsal.sh start|stop|status` controls it by hand.
+Switching away from DiffusionGemma stops its VM. Any switch stops a running
+arena app, which reads the model settings when it starts.
 
 ### DiffusionGemma on a Compute Engine VM
 
@@ -97,7 +118,7 @@ opens.
 | Pause / resume | `scripts/gemma_warm.sh off` / `on` (stopped: disk only, ~$10/month) |
 | Tunnel | `scripts/gemma_tunnel.sh start` / `stop` / `status` |
 | Remove | `scripts/teardown_gemma.sh` |
-| Rehearse the commands | `scripts/setup_gemma.sh --dry-run` |
+| Preview the commands | `scripts/setup_gemma.sh --dry-run` |
 
 #### Connect to the VM through IAP
 
@@ -166,51 +187,42 @@ scripts/dev.sh              # API on 4900, Vite with hot reload on 5274
 ```
 
 You need `uv`, `node`, `gcloud`, and these settings in a `.env` at the root.
-`setup_codelab.sh` writes the Gemini lines, and step 2 writes the model's:
+`setup_codelab.sh` writes the project line, and step 2 writes the rest:
 
 ```
-TYPESAFE_API_KEY=apikey_...                # Jev (steps 2–6), or DiffusionGemma / rehearsal settings
-GOOGLE_GENAI_USE_VERTEXAI=1            # Gemini on Vertex AI (step 6), no API key
-GOOGLE_CLOUD_PROJECT=your-project
-GOOGLE_CLOUD_LOCATION=global
+GEMINI_API_KEY=...                     # Gemini Decisions, and step 6, whichever model you pick
+JEV101_MODEL=jev                       # jev, gemma or gemini
+TYPESAFE_API_KEY=apikey_...            # Jev only
+TYPESAFE_BASE_URL=http://127.0.0.1:8096    # DiffusionGemma only, written by setup_gemma.sh
+GOOGLE_CLOUD_PROJECT=your-project      # DiffusionGemma's project
 ```
 
-`python3 scripts/check_setup.py` says what is set up. The pill at the top
-right of every page says the same thing.
+`python3 scripts/check_setup.py` says what is set up. The lights at the top
+right of every page say the same thing.
 
-### Rehearsal mode
-
-No Discriminative model key yet, or on a plane:
-
-```bash
-python3 scripts/fake_jev.py &          # a stand-in for api.typesafe.ai on :4811
-JEV101_REHEARSAL=1 scripts/start.sh
-```
-
-Every script, the app and the workflow are pointed at the stand-in through
-`TYPESAFE_BASE_URL`, which the SDK already honours. The stand-in speaks the
-real HTTP contract but answers from a word list (it knows the ogre's
-vocabulary), so it proves the plumbing and nothing else. Gemini is still real
-in rehearsal mode, spell cards included.
+The Python packages are `typesafe-sdk` 0.7, `google-genai` 3.2 and
+`google-adk` 2.14. ADK 2.14 pins `google-genai<3` and the Decisions API needs
+3.2, so `pyproject.toml` carries a uv override for `google-genai`.
 
 ## Agenda
 
 | Step | Minutes | Description |
 |---|---|---|
-| 0 Introduction | 4 | Why fast, structured decisions matter; how a workflow, deterministic code, a discriminative model, and a language model combine; what the workshop covers. |
-| 1 Model serving architecture | 6 | Jev over HTTPS and DiffusionGemma through IAP: the request path, and the software stack on the Compute Engine GPU VM. |
-| 2 Set up the model | 8 | Choose Jev, DiffusionGemma or rehearsal mode in the workbench; each choice is checked before it is kept. |
+| 0 Introduction | 4 | Why fast, structured decisions matter; how discriminative models fit into a production system; what the workshop covers. |
+| 1 Model serving architecture | 6 | Jev and Gemini Decisions over HTTPS, each with its own SDK, and DiffusionGemma through IAP: the request path, and the software stack on the Compute Engine GPU VM. |
+| 2 Set up the model | 8 | Choose Jev, DiffusionGemma or Gemini Decisions in the workbench and enter the Gemini API key; each is checked before it is kept. |
 | 3 Play the game manually | 6 | Start the arena app, review the rules, and respond to each move within two seconds. |
 | 4 Discriminative model concepts | 9 | System One and System Two models; Choice, Score, and Noul; probability, confidence, and thresholds. Two interactive widgets. |
 | 5 Automate decisions with the model | 9 | Run the arena with the model choosing each response. Fill in a request (a telegraph and a choice question) and run it. Review the probabilities, the confidence rule in `choose()`, latency and cost. The model avoids damage but cannot win. |
-| 6 Combine models in an ADK workflow | 15 | `agents/arena/agent.py`: an ADK graph with a fast model loop and a parallel Gemini branch that reads the spell card image and casts the spell, validated by the arena. |
+| 6 Combine models in an ADK workflow | 12 | `agents/arena/agent.py`: an ADK graph with a fight loop and a card-reading branch beside it. The decision model answers each tick, Gemini Decisions reads the spell card image while the fight goes on and the arena judges the reading, and Gemini writes the tale at the end. |
 | 7 Summary and next steps | 3 | When to use code, a discriminative model, or a language model; limitations; a summary of the lab. |
 
 ## Architecture
 
-Three processes on the student's machine (or Cloud Shell), and two outside
-services they call: Gemini and the decision model. ② calls the decision model
-in "Discriminative model fights"; ③ calls both in "Workflow fights".
+Three processes on the student's machine (or Cloud Shell), and the outside
+services they call: the decision model, Gemini Decisions and Gemini. ② calls
+the decision model in "Discriminative model fights"; ③ calls all of them in
+"Workflow fights".
 
 ```
  browser ── http://localhost:4900
@@ -228,24 +240,27 @@ in "Discriminative model fights"; ③ calls both in "Workflow fights".
    │  "Workflow fights": starts ③ and draws what it posts back
    ▼
  ③ ADK workflow · scripts/arena.py → agents/arena/agent.py
-      thread 2, tick: the Discriminative model, one call per tick ───────────┐
-      thread 1, read_rune → spellwright: GET /api/sigil.png from ②,          │
-               then Gemini reads the image and sings the spell ──────┐       │
-      posts every decision and spell back to ② over HTTP             │       │
-                                                                     ▼       ▼
-                                        Gemini on Vertex AI      the decision model
-                                        (gemini-flash-latest)    (one of four, below)
+      tick: the decision model, one call per tick ──────────────────► the decision model
+                                                                      (step 2's choice, below)
+      read_card, on its own branch: GET /api/sigil.png from ②,
+               then four choice questions about the image ───────────────────────────► Gemini Decisions
+                                                                      (gemini-decision-1)
+      bard: the tale, once, after the fight ────────────────────────► Gemini
+                                                                      (gemini-flash-latest)
+      posts every decision and card reading back to ② over HTTP
 ```
 
-**Who calls what.** The browser only ever talks to ①. Both models are
-called from Python on the machine, never from the page:
+**Who calls what.** The browser only ever talks to ①. The models are called
+from Python on the machine, never from the page:
 
-| Caller | Discriminative model | Gemini |
-|---|---|---|
-| ② arena, "Discriminative model fights" | every tick, `TypeSafeClient` | no |
-| ③ workflow `tick` | every tick, `AsyncTypeSafeClient` | no |
-| ③ workflow `spellwright`, `bard` | no | the spell card image; the tale after the fight |
-| `scripts/first_call.py`, `ask.py`, `fight.py` (run from the terminal) | yes | no |
+| Caller | Decision model (step 2's choice) | Gemini Decisions, on the card image | Gemini |
+|---|---|---|---|
+| ② arena, "Discriminative model fights" | every tick, `decisions.ask` | no | no |
+| ③ workflow `tick` | every tick, `decisions.ask_async` | no | no |
+| ③ workflow `read_card` | no | at the bell and after each cast, `decisions.ask_gemini_async` | no |
+| ③ workflow `bard` | no | no | the tale after the fight |
+| `scripts/first_call.py`, `ask.py`, `fight.py`, `branches/fight_loop.py` (run from the terminal) | yes | no | no |
+| `branches/read_card.py` (run from the terminal) | no | yes | no |
 
 **One tick, per mode.**
 
@@ -256,24 +271,37 @@ called from Python on the machine, never from the page:
   returns the answers and the outcome. The page draws the bars.
 - *Workflow fights.* Start makes ② launch ③ as a subprocess (log in
   `runs/arena-workflow.log`). ③ drives the fight: it asks ② for each
-  telegraph, calls the model, and posts the decision; Gemini's spell arrives
-  on its own branch whenever it is ready. The page only polls ② and draws.
-  Pause is a flag on ② that ③ checks before each tick.
+  telegraph, calls the model, and posts the decision. `read_card` runs on its
+  own branch at the same time, so the fight does not wait for it. The page only polls
+  ② and draws. Pause is a flag on ② that ③ checks before each tick.
 
-**Where the decision model lives.** Every call goes through the same
-`typesafe-sdk`; only the base URL changes. `scripts/jevauth.py`
-names the backend and sets the key and timeout:
+**How the model is called.** `scripts/decisions.py` holds both calls behind
+`ask(about, questions)` and `ask_async(about, questions)`. `about` is what the model judges; it goes out as `state` with the TypeSafe SDK and as `input` with the Google Gen AI SDK. Questions are plain
+dicts, `{"type": "choice"|"noul"|"score", "instructions": ..., "criteria": ...}`,
+and the answers have the same fields from either SDK. Call sites use
+`decisions.ask` or `ask_async` and never make a client themselves.
+
+| | Jev and DiffusionGemma | Gemini Decisions |
+|---|---|---|
+| Package | `typesafe-sdk` | `google-genai` |
+| Call | `client.system_one(state=..., questions=...)` | `client.decisions.create(model="gemini-decision-1", input=..., questions=...)` |
+| Request | `POST /v1/systemone` | `POST https://generativelanguage.googleapis.com/v1beta/decisions` |
+| What to judge | `state`, an object or text | `input`, text or content blocks such as an image |
+
+**Where the decision model lives.** `scripts/jevauth.py` names the backend
+and sets the key and timeout. `JEV101_MODEL=gemini` selects Gemini Decisions;
+otherwise the backend follows `TYPESAFE_BASE_URL`:
 
 | Backend | `TYPESAFE_BASE_URL` | Key | Set up by |
 |---|---|---|---|
-| TypeSafe, hosted | unset (api.typesafe.ai) | `TYPESAFE_API_KEY` | step 2, or `setup_model.sh --model jev` |
+| Jev on TypeSafe, hosted | unset (api.typesafe.ai) | `TYPESAFE_API_KEY` | step 2, or `setup_model.sh --model jev` |
 | DiffusionGemma on your L4 VM | `http://127.0.0.1:8096`, the IAP tunnel | none | step 2, or `setup_model.sh --model gemma` |
 | DiffusionGemma on Cloud Run | `https://djev-…run.app` | a Google identity token, fetched per hour | `setup_gemma_cloudrun.sh` |
-| Rehearsal | `http://127.0.0.1:4811`, set by `JEV101_REHEARSAL=1` | none | step 2, or `setup_model.sh --model rehearsal` |
+| Any other Jev-compatible server | its address | none | by hand, in `.env` |
+| Gemini Decisions, hosted | not used | `GEMINI_API_KEY` | step 2, or `setup_model.sh --model gemini` |
 
-The spell card's answer never leaves ②: the workflow gets only the PNG, and ②
-judges the spell it sends back. That is what makes the spell a real test of
-Gemini's reading, and the spell you build in "You fight" a real test of yours.
+The spell card's answer never leaves ②. The workflow gets only the PNG, and ②
+judges the reading it sends back.
 
 ## Repository layout
 
@@ -290,22 +318,30 @@ app/                the arena app, as built so far (see "The app, one stage at a
   mode_workflow.py  step 6: the server side of "Workflow fights"
 stages/             the source of app/: one folder per step, each laid on top of the last
 agents/arena/agent.py   the ADK Workflow (root_agent), also served by ADK web at /inspector
-branches/            step 6b's exercises: each branch as a workflow of its own, nothing from the arena
-  slow_branch.py    Gemini reads spell_card.png and is checked against spell_card.json
-  fast_branch.py    the Discriminative model decides on a list of moves, in a loop
-starter/            unedited copies of the files the exercises fill in (Reset restores from here)
+branches/            step 6b's exercises: each part of the graph as a workflow of its own, nothing from the arena
+  read_card.py      Gemini Decisions reads spell_card.png and is checked against spell_card.json
+  fight_loop.py     the decision model decides on a list of moves, in a loop
+  cards/            the spell cards the exercise can choose from
+starter/            unedited copies of the files the exercises fill in (scripts/starter.sh restores from here):
+                    scripts/first_call.py, branches/read_card.py, branches/fight_loop.py
 scripts/
+  setup_model.sh    chooses the decision model and checks it: --model jev|gemma|gemini
+  decisions.py      ask() and ask_async(): the one call to the chosen model, through either SDK
+  jevauth.py        where the decision model lives, and how to authenticate to it
+  verify_jev_key.py     one real request with a TypeSafe API key
+  verify_gemini_key.py  one real request to gemini-decision-1 with a Gemini API key
+  pick_gemini_model.py  finds the Gemini model that writes the tale
+  check_setup.py    what is and is not configured (exit 0 when the decision model is callable)
   stage.py          builds app/ up to a step: python3 scripts/stage.py 5
-  jevauth.py        where the Discriminative model lives, and how to authenticate to it
-  check_setup.py    what is and is not configured (exit 0 when the Discriminative model is callable)
   first_call.py     the request step 5a fills in: TELEGRAPH and a choice question; --curl
   ask.py            any question, as noul / --choice / --score, about a telegraph
-  fight.py          a whole fight in the terminal, the Discriminative model only; --moves lists the ogre's repertoire
+  fight.py          a whole fight in the terminal, the decision model only; --moves lists the ogre's repertoire
   arena.py          the ADK workflow with a timestamped timeline; plays on the app's screen when it is running
-  fake_jev.py       the rehearsal stand-in
+  fake_jev.py       a developer test stand-in for Jev's API (the TypeSafe SDK path); the workshop never uses it
 content/            course.yaml + one directory per step (see "Authoring steps")
 server/             FastAPI: content, intent matching, runs over SSE, probes, terminal, app proxy, ADK web
 web/                React + Vite + Tailwind: the page
+slides/             the source of the workshop's slides (see slides/README.md)
 ```
 
 ### The app, one stage at a time
@@ -337,25 +373,43 @@ The repository ships with `app/` at stage 3, where a workshop starts.
 ### ADK workflow
 
 ```
-START ─► enter ─┬─► read_rune ─► spellwright (Gemini, seconds) ─► spell_ready (state only)
-                │                     ▲
-                └─► tick ~100 ms ─────┤ "recast" after a spell is cast   (tick = the Discriminative model)
-                        │  "again"      │
-                        └─► tick ───────┴─► "done" ─► summarise ─► bard (Gemini) ─► finish
+START ─► enter ─┬─► read_card ─► writes state["spell"]        "again" after a misread
+                │       ▲
+                │       └──── "read": a spell was cast, a new card is up
+                │
+                └─► tick ─┬─ "next" ─► tick                    reads state["spell"] every tick
+                          └─ "done" ─► summarise ─► bard (Gemini) ─► finish
 ```
 
-`enter` rings the bell on the running app (or on an in-process engine when no
-app is up) and fans out to both branches. `tick` is an async function node:
-it awaits the Discriminative model with `AsyncTypeSafeClient`, reads `state["spell"]` at the top of
-every tick, offers `cast` only when a spell is ready, posts the Discriminative model's decision to
-the arena so the page can draw it, and returns `Event(route=[...])`, possibly
-two routes at once. `read_rune` fetches the spell card the screen is showing as a
-PNG and returns it as a `types.Content` with an image part, which is what the
-`spellwright` LlmAgent receives. `spell_ready` posts the song to the arena,
-which judges it against the spell card's hidden answer, and writes the verdict into
-state with no output, so the slow branch never counts as a second terminal
-output. The bard runs once, after the fight, because prose is what a language
-model is for.
+The graph is a fight loop with a card-reading branch beside it:
+
+```python
+("START", enter),
+(enter, (read_card, tick)),                   # fan-out: read the card and fight, together
+(read_card, {"again": read_card, "stored": rest}),
+(tick, {"next": tick, "read": read_card, "done": summarise}),
+(summarise, bard, finish),
+```
+
+`enter` rings the bell on the running app, or on an in-process engine when no
+app is up. `tick` is an async function node. It awaits the chosen decision
+model with `decisions.ask_async`, reads `state["spell"]` at the top of every
+tick, offers `cast` only when a spell is ready, posts the decision to the
+arena so the page can draw it, and returns `Event(route=[...])`. After a cast
+the routes are `["read", "next"]`, which takes both edges at once.
+
+`read_card` runs on its own branch, at the bell and after each cast. It
+fetches the spell card the screen is showing as a PNG and sends it to Gemini
+Decisions with four choice questions: `element`, `first`, `second` and
+`third`. It posts the reading to the arena, which judges it against the
+card's hidden answer, and writes the spell into state with no output, so the
+branch never counts as a second ending of the graph. A misread card leaves no
+spell and routes `"again"` to read the new card. The incantation is a fixed
+line per element. Both branches are tasks on one event loop: while `tick`
+awaits its model, `read_card` runs.
+
+`bard` is an `LlmAgent` on Gemini. It writes the tale once, after the fight,
+and is the only language model call in the workflow.
 
 Gemini is `gemini-flash-latest` unless `JEV101_GEMINI_MODEL` says otherwise.
 `JEV101_TICK_SECONDS` (default 0.5) paces the loop so a person can watch.
@@ -364,11 +418,11 @@ Gemini is `gemini-flash-latest` unless `JEV101_GEMINI_MODEL` says otherwise.
 ### Game rules
 
 Ten telegraphs, five responses. Every telegraph has a counter the engine
-knows and the Discriminative model does not. A right call counters for 3; a strike into an opening
+knows and the decision model does not. A right call counters for 3; a strike into an opening
 does 8; a wrong call takes 12 or 24. The ogre has 300 hit points, so reflexes
-alone end in a draw. A perfectly sung spell does 45, 67 into an opening. The
-spell card is a border color and three shapes; Gemini reads the image
-and the arena judges the song, so the spell card's answer never leaves the server.
+alone end in a draw. A correctly read spell does 45, 67 into an opening. The
+spell card is a border color and three shapes; Gemini Decisions reads the image
+and the arena judges the reading, so the spell card's answer never leaves the server.
 
 ## Workbench
 
@@ -390,15 +444,16 @@ The engine is the Cloud 101 workbench with the Google Cloud course removed:
   uses it at the moment.
   A run started there executes inside the workbench process and plays on the
   arena app. `/api/inspector` reports whether it loaded.
-- **Environment** (`/api/env`) reports whether the Discriminative model and Gemini are set up.
+- **Environment** (`/api/env`) reports whether the decision model and the Gemini API key are set up.
   `.env` at the root is read on every request, so a student can add a key
   without restarting.
 
-Environment variables: `JEV101_PORT` (4900), `JEV101_APP_PORT` (8090, so it
-does not collide with other workshops on 8080), `JEV101_FAKE_PORT` (4811),
-`JEV101_REHEARSAL`, `JEV101_GEMINI_MODEL`, `JEV101_TICK_SECONDS`,
-`JEV101_ARENA_URL`, `JEV101_AGENT_URL` (an optional remote judge for intents,
-as in Cloud 101).
+Environment variables: `JEV101_MODEL` (`jev`, `gemma` or `gemini`),
+`GEMINI_API_KEY`, `TYPESAFE_API_KEY`, `TYPESAFE_BASE_URL`, `JEV101_PORT`
+(4900), `JEV101_APP_PORT` (8090, so it does not collide with other workshops
+on 8080), `JEV101_GEMINI_MODEL`, `JEV101_TICK_SECONDS`, `JEV101_ARENA_URL`,
+`JEV101_JEV_TIMEOUT` (seconds per decision call), `CLOUD101_AGENT_URL` (an
+optional remote judge for intents, as in Cloud 101).
 
 ### Authoring steps
 
@@ -408,7 +463,7 @@ directives as Cloud 101: `:::section`, `:::figure`, `:::columns`, `:::key`,
 `:::note`, `:::warn`. Figures are inline SVG in
 `web/src/illustrations/index.tsx`; widgets in `web/src/widgets/`. Task kinds:
 `intent`, `command`, `widget`, `files`, `terminal`, `app`, `console`,
-`reflect`, `placeholder`.
+`reflect`, `model-setup`, `assemble`, `edit`, `placeholder`.
 
 Probe assertions: `succeeds`, `nonempty`, `equals`, `contains`,
 `not_contains`, `matches`, `json_nonempty`, `json_count_gte`, `json_contains`.
@@ -420,6 +475,7 @@ A probe may use `$APP_PORT`, `$JEV_MODEL`, `$JEV_MODE`, `$HOME`, `$ROOT`.
   cookbooks, models, API reference)
 - Launch post: https://typesafe.ai/blog/introducing-system-one-models-and-jev
 - Python SDK: https://github.com/typesafe-ai/typesafe-sdk-python
+- Gemini API keys: https://aistudio.google.com/apikey
 - ADK graph workflows: https://adk.dev/graphs/
 - DiffusionGemma: https://ai.google.dev/gemma/docs/diffusiongemma ·
   Discriminative-model-style reads in vLLM: https://github.com/vllm-project/vllm/pull/57250 ·

@@ -180,12 +180,11 @@ export interface AppStatus {
 }
 
 export interface Env {
-  jev: string;          // "live" | "rehearsal" | "no key" | ...
+  jev: string;          // "live" | "gemini decisions" | "gemma on vm" | "no key" | ...
   jevKey: boolean;
   modelReady: boolean;  // checked and answering
   modelSetup: string;   // the model step 2 is setting up now, or ""
-  rehearsal: boolean;
-  gemini: string;       // "vertex" | "api key" | "no key"
+  gemini: string;       // "api key" | "no key"
   geminiReady: boolean;
   model: string;
   project: string;
@@ -242,11 +241,11 @@ export const api = {
   modelCheck: () => json<{ env: Env; message: string }>("/api/model-check", { method: "POST" }),
   modelSetupStatus: () =>
     json<{ token: string | null; state?: string; model?: string; log?: string }>("/api/model-setup"),
-  modelSetup: (model: string, key: string) =>
+  modelSetup: (model: string, key: string, geminiKey: string) =>
     json<{ token: string; command: string }>("/api/model-setup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, key }),
+      body: JSON.stringify({ model, key, geminiKey }),
     }),
   startRun: (slug: string, taskId: string) =>
     json<{ token: string }>(`/api/run/${slug}/${taskId}`, { method: "POST" }),

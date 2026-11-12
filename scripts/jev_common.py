@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PRICE_PER_MILLION_INPUT_TOKENS = 0.042   # the Discriminative model's published price; output tokens are free
 
 
 def load_env(path: Path = ROOT / ".env") -> None:
@@ -22,17 +21,8 @@ def load_env(path: Path = ROOT / ".env") -> None:
 
 
 def jev_backend(base_url: str | None = None) -> str:
-    """typesafe | cloud-run | self-hosted | rehearsal: see scripts/jevauth.py."""
+    """typesafe | gemma-vm | cloud-run | self-hosted | gemini: see scripts/jevauth.py."""
     return _jevauth().backend(base_url)
-
-
-def jev_client():
-    """A TypeSafeClient for whichever backend .env points at, authorised."""
-    from typesafe_sdk import TypeSafeClient
-
-    auth = _jevauth()
-    auth.prepare()
-    return TypeSafeClient(**auth.client_kwargs())
 
 
 def _jevauth():
@@ -55,10 +45,10 @@ def opponent() -> dict:
     return engine.OPPONENT
 
 
-def cost_line(response) -> str:
-    tokens = response.usage.input_tokens or 0
-    return (f"{tokens} input tokens · ${tokens * PRICE_PER_MILLION_INPUT_TOKENS / 1_000_000:.6f}"
-            f" · model {response.model}")
+def cost_line(answered) -> str:
+    """One line about a decisions.Answered: tokens, cost, model."""
+    return (f"{answered.input_tokens} input tokens · ${answered.cost_usd:.6f} · "
+            f"model {answered.model} · {answered.sdk}")
 
 
 def bar(value: float, width: int = 20) -> str:

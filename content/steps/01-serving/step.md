@@ -1,37 +1,63 @@
 :::section kicker="Access options" headline="Selecting the model"
 You choose the model in step 2, depending on your preference and
-environment. If you plan to use DiffusionGemma, make sure you have access to a
-GPU on Google Cloud.
+environment. Jev and Gemini Decisions are hosted and need only an API key. If
+you plan to use DiffusionGemma, make sure you have access to a GPU on Google
+Cloud. Whichever you choose, step 6 also calls Gemini Decisions to read the
+spell card, so everyone needs a Gemini API key.
 
-| | Jev | DiffusionGemma |
-|---|---|---|
-| **Provider** | TypeSafe AI, hosted API | Google, open weights |
-| **Runs on** | TypeSafe's infrastructure | A Compute Engine VM in your project, with GPU |
-| **Endpoint** | `https://api.typesafe.ai` | Through an IAP tunnel |
-| **Authentication** | `TYPESAFE_API_KEY` | Your Google Cloud identity, checked by IAP |
-| **Cost** | Per input token | Google Cloud's Compute Engine GPU pricing, while the VM runs |
-| **Setup** | An API key | Install the model on a VM or Cloud Run |
+| | Jev | DiffusionGemma | Gemini Decisions |
+|---|---|---|---|
+| **Provider** | TypeSafe AI, hosted API | Google, open weights | Google, hosted API |
+| **Runs on** | TypeSafe's infrastructure | A Compute Engine VM in your project, with GPU | The Gemini Developer API |
+| **Endpoint** | `https://api.typesafe.ai` | Through an IAP tunnel | `https://generativelanguage.googleapis.com` |
+| **Authentication** | `TYPESAFE_API_KEY` | Your Google Cloud identity, checked by IAP | `GEMINI_API_KEY` |
+| **SDK** | `typesafe-sdk` | `typesafe-sdk` | `google-genai` |
+| **Input** | Text | Text | Text, images, audio, video, PDF |
+| **Cost** | Per input token | Google Cloud's Compute Engine GPU pricing, while the VM runs | Per input token, with a no-cost tier |
+| **Setup** | An API key | Install the model on a Compute Engine VM | An API key |
 
-:::figure id="serving-dataflow" caption="The same request takes one of two paths. Jev is called over HTTPS. DiffusionGemma is reached through an IAP tunnel to a VM in your project."
+:::figure id="serving-dataflow" caption="The same questions take one of three paths. Jev and Gemini Decisions are called over HTTPS, each with its own SDK. DiffusionGemma is reached through an IAP tunnel to a VM in your project."
 :::
 
 ### Data flow
 
 1. The arena app or the ADK workflow builds a request: the state (what the
    opponent did) and three questions.
-2. The TypeSafe SDK sends it as `POST /v1/systemone` to the configured base
-   URL.
-3. For **Jev**, the request goes over HTTPS to `api.typesafe.ai`, with the API
-   key as a bearer token.
-4. For **DiffusionGemma**, the request goes to `localhost:8096`. A background
-   `gcloud compute start-iap-tunnel` process forwards it through
-   Identity-Aware Proxy, which checks your Google identity, to port 8080 on
-   the VM.
-5. On the VM, djev-run receives the request, runs DiffusionGemma through vLLM
-   on the GPU, and reads the probability of each allowed option.
-6. Both backends return the same response: an answer per question, with
+2. `scripts/decisions.py` hands the request to the SDK for the model you
+   chose.
+3. For **Jev**, the TypeSafe SDK sends `POST /v1/systemone` over HTTPS to
+   `api.typesafe.ai`, with the API key as a bearer token.
+4. For **DiffusionGemma**, the TypeSafe SDK sends the same request to
+   `localhost:8096`. A background `gcloud compute start-iap-tunnel` process
+   forwards it through Identity-Aware Proxy, which checks your Google
+   identity, to port 8080 on the VM. There, djev-run runs DiffusionGemma
+   through vLLM on the GPU and reads the probability of each allowed option.
+5. For **Gemini Decisions**, the Google Gen AI SDK sends `POST
+   /v1beta/decisions` over HTTPS to `generativelanguage.googleapis.com`, with
+   the API key in the `x-goog-api-key` header. The model is
+   `gemini-decision-1`.
+6. All three return the same kind of response: an answer per question, with
    probabilities and a confidence score. The workshop code applies its
    thresholds and acts.
+:::
+
+:::section kicker="SDKs" headline="Two SDKs for the same request"
+The two SDKs ask the same thing in slightly different words. Both take a set
+of named questions, each a Choice, a Score or a Noul, and both return one
+typed answer per question.
+
+:::figure id="two-sdks" caption="The same request through each SDK. The questions and the answers match. The state is called state in one and input in the other."
+:::
+
+| | TypeSafe SDK | Google Gen AI SDK |
+|---|---|---|
+| **Package** | `typesafe-sdk` | `google-genai` |
+| **Client** | `TypeSafeClient()` | `genai.Client()` |
+| **Call** | `client.system_one(...)` | `client.decisions.create(...)` |
+| **What to judge** | `state`, an object or text | `input`, text or content blocks such as an image |
+| **Model** | set on the client, `jev-latest` by default | `model="gemini-decision-1"` |
+| **Questions** | `Choice`, `Score` and `Noul` objects | the same three types, as plain dicts |
+| **Answers** | `.choice`, `.score`, `.noul`, `.confidence`, `.probabilities` | the same fields |
 :::
 
 :::section kicker="Deployment" headline="DiffusionGemma on Compute Engine"

@@ -23,13 +23,17 @@ def reflex_questions(spell_ready):
     if spell_ready:
         options["cast"] = CAST                # only offered when there is a spell
     return {
-        "response": Choice(instructions="The opponent has just done this. What is the right response?",
-                           criteria=options),
-        "exposed": Noul(instructions="Is the opponent exposed to a counter-attack right now?"),
-        "danger": Score(instructions="How much damage is about to land if the fighter does nothing?",
-                        criteria=["None: this is not an attack.", "A light hit.", "A heavy hit."]),
+        "response": {"type": "choice", "criteria": options,
+                     "instructions": "The opponent has just done this. What is the right response?"},
+        "exposed": {"type": "noul",
+                    "instructions": "Is the opponent exposed to a counter-attack right now?"},
+        "danger": {"type": "score", "criteria": ["None: this is not an attack.", "A light hit.", "A heavy hit."],
+                   "instructions": "How much damage is about to land if the fighter does nothing?"},
     }
 ```
+
+`mode_model.py` sends these with `decisions.ask()`, so the same three
+questions go to Jev, DiffusionGemma or Gemini Decisions.
 :::
 
 :::section kicker="Decision logic" headline="The choose() function"

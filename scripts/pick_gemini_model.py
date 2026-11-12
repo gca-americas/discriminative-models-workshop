@@ -3,13 +3,12 @@
     python3 scripts/pick_gemini_model.py
 
 It tries the model already configured (JEV101_GEMINI_MODEL, or gemini-flash-latest)
-with one tiny request. If that model is not available, for example a project on
-Vertex AI that does not have the "-latest" alias, it lists the models the
-project can see and tries the newest plain Flash model, then the next.
+with one tiny request. If that model is not available to the key, it lists the
+models the key can see and tries the newest plain Flash model, then the next.
 
-Uses the same settings as the workshop: .env at the root, Vertex AI in
-GOOGLE_CLOUD_PROJECT at GOOGLE_CLOUD_LOCATION. setup_codelab.sh saves the result
-as JEV101_GEMINI_MODEL.
+Uses the same settings as the workshop: GEMINI_API_KEY in .env at the root.
+setup_codelab.sh saves the result as JEV101_GEMINI_MODEL. This is the model
+that writes the tale in step 6; the spell card is read by gemini-decision-1.
 
 Exit codes: 0 found one (its name on stdout), 1 none worked, 2 Gemini not set up.
 """
@@ -41,11 +40,8 @@ def load_env() -> None:
 def client():
     from google import genai
 
-    if os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true"):
-        return genai.Client(vertexai=True, project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
-                            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global"))
-    key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-    return genai.Client(api_key=key) if key else None
+    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    return genai.Client(vertexai=False, api_key=key) if key else None
 
 
 def answers(gemini, model: str) -> str:
@@ -73,7 +69,7 @@ def main() -> int:
     load_env()
     gemini = client()
     if gemini is None:
-        print("Gemini is not set up: run ./setup_codelab.sh to point it at Vertex AI.", file=sys.stderr)
+        print("There is no GEMINI_API_KEY. Add one in step 2.", file=sys.stderr)
         return 2
 
     configured = os.environ.get("JEV101_GEMINI_MODEL") or DEFAULT
@@ -95,7 +91,7 @@ def main() -> int:
         if not answers(gemini, name):
             print(name)
             return 0
-    print("No Flash model answered. Check the project's access to Gemini.", file=sys.stderr)
+    print("No Flash model answered. Check the key's access to Gemini.", file=sys.stderr)
     return 1
 
 

@@ -3,15 +3,14 @@ with the answer.
 
 Added in step 5, on top of the game from step 3. The rules stay in engine.py;
 this file turns them into three typed questions, and turns the typed answers
-back into one action. Used by the arena server (mode_model.py), the terminal
+back into one action. The questions are plain dicts, the JSON both SDKs send;
+scripts/decisions.py hands them to whichever SDK reaches the chosen model. Used by the arena server (mode_model.py), the terminal
 fight (scripts/fight.py) and the ADK workflow (agents/arena/agent.py).
 """
 
 from __future__ import annotations
 
 from typing import Any
-
-from typesafe_sdk import Choice, Noul, Score
 
 from engine import CAST, RESPONSES
 
@@ -25,17 +24,20 @@ def reflex_questions(spell_ready: bool) -> dict[str, Any]:
     if spell_ready:
         options["cast"] = CAST
     return {
-        "response": Choice(
-            instructions="The opponent has just done this. What is the right response?",
-            criteria=options,
-        ),
-        "exposed": Noul(
-            instructions="Is the opponent exposed to a counter-attack right now?",
-        ),
-        "danger": Score(
-            instructions="How much damage is about to land if the fighter does nothing?",
-            criteria=["None: this is not an attack.", "A light hit.", "A heavy hit."],
-        ),
+        "response": {
+            "type": "choice",
+            "instructions": "The opponent has just done this. What is the right response?",
+            "criteria": options,
+        },
+        "exposed": {
+            "type": "noul",
+            "instructions": "Is the opponent exposed to a counter-attack right now?",
+        },
+        "danger": {
+            "type": "score",
+            "instructions": "How much damage is about to land if the fighter does nothing?",
+            "criteria": ["None: this is not an attack.", "A light hit.", "A heavy hit."],
+        },
     }
 
 
@@ -48,7 +50,7 @@ SPEND_ON_OPENING = 0.60    # exposed at or above this, with a spell ready: cast,
 
 
 def choose(answers: dict[str, Any], spell_ready: bool) -> dict[str, Any]:
-    """Typed answers in (`response.answers`), one action out. Two rules, both
+    """Typed answers in (`answered.answers`), one action out. Two rules, both
     in code: a shaky choice in the face of a heavy hit becomes a dodge, and a
     strike into an opening becomes a cast when there is a spell to spend. The Discriminative model
     reads the situation; the code holds the policy."""

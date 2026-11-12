@@ -15,15 +15,17 @@ parts:
       title: Prepare your environment
       intro: >
         Choose the model the workshop uses. The setup checks your choice before
-        it keeps it, and offers the others if it does not work.
+        it keeps it. If it does not work, it is marked and the next model is
+        selected for you to try.
       tasks:
         - kind: model-setup
           id: model
           title: Choose the decision model
           explain: >
             Jev needs a TypeSafe API key. DiffusionGemma needs a Google Cloud
-            project with billing and GPU quota. If neither works here, the
-            workshop uses rehearsal mode.
+            project with billing and GPU quota. Gemini Decisions needs a
+            Gemini API key. Enter the Gemini API key whichever model you
+            choose, because step 6 uses it.
     checks:
       - id: jev-ready
         label: Model endpoint is reachable
@@ -32,3 +34,11 @@ parts:
         value: "model: ready"
         hint: >
           Choose the decision model above and press Set up.
+      - id: gemini-key
+        label: Gemini API key is set
+        probe: python3 scripts/check_setup.py
+        assert: not_contains
+        value: gemini          not set up
+        hint: >
+          Paste a Gemini API key into the field above and press Set up. Create
+          one at https://aistudio.google.com/apikey.

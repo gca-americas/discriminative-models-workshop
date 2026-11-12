@@ -84,6 +84,9 @@ def model_check() -> dict[str, Any]:
     if not env["modelReady"] and env["jev"] == "live":
         environment.verify_jev_now()
         env = environment.discover(force=True)
+    elif not env["modelReady"] and env["jev"] == "gemini decisions":
+        environment.verify_gemini_now()
+        env = environment.discover(force=True)
     if env["modelSetup"]:
         message = "Still being set up."
     elif env["modelReady"]:
@@ -115,20 +118,22 @@ def start_run(slug: str, task_id: str) -> dict[str, Any]:
     return {"token": token}
 
 
-MODELS = {"jev", "gemma", "rehearsal"}
+MODELS = {"jev", "gemma", "gemini"}
 
 
 @router.post("/model-setup")
 def model_setup(model: str = Body(..., embed=True),
-                key: str = Body("", embed=True)) -> dict[str, Any]:
+                key: str = Body("", embed=True),
+                gemini_key: str = Body("", embed=True, alias="geminiKey")) -> dict[str, Any]:
     """Step 2: choose the decision model. Runs scripts/setup_model.sh, which
-    checks the choice before it keeps it. A Jev key goes to the script in its
+    checks the choice before it keeps it. The keys go to the script in its
     environment, never on its command line."""
     if model not in MODELS:
         raise HTTPException(400, f"model must be one of {sorted(MODELS)}")
     command = f"scripts/setup_model.sh --model {model} --yes --no-fallback"
     process_env: dict[str, str | None] = {
         "TYPESAFE_API_KEY": key.strip() or None,   # none: the script reads .env
+        "GEMINI_API_KEY": gemini_key.strip() or None,
         "TYPESAFE_BASE_URL": None,
     }
     token = runs.start("run-it", "model", command, environment.as_substitutions(), process_env)
@@ -201,8 +206,8 @@ def branch_cards() -> dict[str, Any]:
 
 @router.post("/branches/cards")
 def choose_card(card: str = Body(..., embed=True)) -> dict[str, Any]:
-    """The card the slow branch sends to Gemini: copied to spell_card.png, with
-    its answer to spell_card.json, which the script reads and Gemini never sees."""
+    """The card branches/read_card.py sends to Gemini Decisions: copied to spell_card.png,
+    with its answer to spell_card.json, which the script reads and the model never sees."""
     if card not in _cards():
         raise HTTPException(404, f"no card {card}")
     import shutil

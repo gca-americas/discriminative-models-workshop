@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
-from jev_common import bar, cost_line, load_env, moves, opponent, jev_client  # noqa: E402
+from jev_common import bar, cost_line, load_env, moves, opponent  # noqa: E402
 
 
 def main() -> int:
@@ -31,7 +31,7 @@ def main() -> int:
     args = parser.parse_args()
 
     load_env()
-    from typesafe_sdk import Choice, Noul, Score, TypeSafeClient, TypeSafeError
+    from decisions import ModelError, ask
 
     if args.text:
         text = args.text
@@ -44,14 +44,14 @@ def main() -> int:
 
     if args.choice:
         options = [o.strip() for o in args.choice.split(",") if o.strip()]
-        question = Choice(instructions=args.question, criteria={o: None for o in options})
+        question = {"type": "choice", "instructions": args.question, "criteria": {o: None for o in options}}
         kind = "choice"
     elif args.score:
         levels = [l.strip() for l in args.score.split(",") if l.strip()]
-        question = Score(instructions=args.question, criteria=levels)
+        question = {"type": "score", "instructions": args.question, "criteria": levels}
         kind = "score"
     else:
-        question = Noul(instructions=args.question)
+        question = {"type": "noul", "instructions": args.question}
         kind = "noul"
 
     print(f"telegraph {text}")
@@ -60,12 +60,9 @@ def main() -> int:
 
     started = time.perf_counter()
     try:
-        with jev_client() as client:
-            response = client.system_one(
-                state={"opponent": opponent()["description"], "telegraph": text},
-                questions={"answer": question},
-            )
-    except TypeSafeError as failure:
+        response = ask(about={"opponent": opponent()["description"], "telegraph": text},
+                       questions={"answer": question})
+    except ModelError as failure:
         print(f"The Discriminative model did not answer: {failure}")
         return 1
     elapsed_ms = round((time.perf_counter() - started) * 1000)
@@ -80,7 +77,7 @@ def main() -> int:
             print(f"{mark} {option:<14} {bar(p)}  {p:.2f}")
         print(f"\n  choice {answer.choice} · confidence {answer.confidence:.2f}")
     else:
-        for level, p in answer.probabilities.items():
+        for level, p in sorted(answer.probabilities.items()):
             print(f"  {level}  {answer.legend[level]:<24} {bar(p)}  {p:.2f}")
         print(f"\n  score {answer.score:.2f} on 0–{len(answer.legend) - 1} · confidence {answer.confidence:.2f}")
 

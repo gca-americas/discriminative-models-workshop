@@ -40,9 +40,14 @@ needs from AI is a decision.
 
 :::section kicker="Scope" headline="Limitations"
 The Discriminative model will not generate text, write code, hold a conversation, do arithmetic,
-read an image, or follow a chain of steps.
+or follow a chain of steps. Jev and DiffusionGemma read text only. Gemini
+Decisions also reads images, audio, video and PDFs, and still answers only
+with a choice, a score or a yes/no.
 
 In the workshop, we'll choose one of the Discriminative models.
+
+:::figure id="three-models" caption="The three decision models in this workshop. The questions and the answers have the same shape on all three."
+:::
 
 :::note
 One of the Discriminative models is Jev. It is a hosted API from TypeSafe AI,
@@ -57,6 +62,13 @@ instead of one at a time, and that same parallel pass can read out
 probabilities over a fixed set of options. Open-source servers such as
 djev-run put Jev's exact API in front of it, so everything in this workshop
 runs against it unchanged.
+:::
+
+:::note
+Google's **Gemini Decisions API**, announced in November 2026, is a hosted
+System One model, `gemini-decision-1`. It is called with the Google Gen AI SDK
+and a Gemini API key. It takes the same three question types and returns
+probabilities and a confidence, with no output tokens.
 :::
 :::
 

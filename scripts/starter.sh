@@ -3,17 +3,17 @@
 # lines, from the copies in starter/. Your edits to these files are lost:
 #
 #   scripts/first_call.py       step 5a, the first request
-#   branches/slow_branch.py     step 6b, the slow branch
-#   branches/fast_branch.py     step 6b, the fast branch
+#   branches/read_card.py       step 6b, reading the spell card
+#   branches/fight_loop.py      step 6b, the fight loop
 #
 # It also selects spell card 1 again and puts the arena app back in manual mode.
 #
 #   scripts/starter.sh          reset all of them
-#   scripts/starter.sh FILE...  reset only these, e.g. branches/fast_branch.py
+#   scripts/starter.sh FILE...  reset only these, e.g. branches/fight_loop.py
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-FILES=(scripts/first_call.py branches/slow_branch.py branches/fast_branch.py)
+FILES=(scripts/first_call.py branches/read_card.py branches/fight_loop.py)
 [ $# -gt 0 ] && FILES=("$@")
 
 for f in "${FILES[@]}"; do

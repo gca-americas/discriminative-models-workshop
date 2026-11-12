@@ -4,5 +4,5 @@ kicker: Step 1
 part: run
 minutes: 6
 color: violet
-summary: How the workshop calls Jev or DiffusionGemma, and how DiffusionGemma is deployed on a Compute Engine GPU VM.
+summary: How the workshop calls Jev, DiffusionGemma or Gemini Decisions, and how DiffusionGemma is deployed on a Compute Engine GPU VM.
 headline: Access options and deployment

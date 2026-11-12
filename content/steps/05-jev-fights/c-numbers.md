@@ -1,13 +1,18 @@
 :::section kicker="Latency" headline="Response time per decision"
-Each tick of the fight in part b came back in about a hundred milliseconds, a
-few in two or three.
+Each tick of the fight in part b came back in a few hundred milliseconds or
+less. Jev answers in about a hundred. Gemini Decisions answers in about three
+hundred. DiffusionGemma on a single GPU takes a little longer.
 That is fast enough for a game loop, a request path, or a check on every
 message before a person or a language model sees it.
+
+:::figure id="latency-scale" caption="One decision next to the two-second timer you played against in step 3, and next to a language model writing an answer."
+:::
 :::
 
 :::section kicker="Cost" headline="Input-based pricing"
-A whole fight, sixty decisions with three questions each, costs well under a
-tenth of a cent.
+A whole fight, sixty decisions with three questions each, costs a fraction
+of a cent. Jev is priced at $0.042 per million input tokens and Gemini
+Decisions at $0.10, with a no-cost tier.
 Output tokens are zero because nothing was generated.
 
 :::figure id="cost-shape" caption="A language model's cost grows with the length of what it writes. The Discriminative model's only grows with what it reads."

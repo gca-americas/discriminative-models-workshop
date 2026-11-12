@@ -286,7 +286,7 @@ def main() -> int:
             slides.append({"id": figure_id, "step": "", "stepTitle": "", "color": "sky",
                            "heading": figure_id.replace("-", " ").capitalize(), "caption": "",
                            **convert(svg, "sky")})
-    deck = {"title": "Getting started with Discriminative (Jev/DiffusionGemma) models",
+    deck = {"title": "Getting started with Discriminative models (Jev/Gemini Decisions)",
             "subtitle": "Workshop illustrations", "slides": rounded(slides)}
     template = (ROOT / "slides" / "builder.gs").read_text()
     OUT.write_text(template.replace("/*DECK*/null", json.dumps(deck, separators=(",", ":"))))

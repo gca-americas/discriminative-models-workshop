@@ -1,23 +1,21 @@
-"""The arena as an ADK graph: the Discriminative model fights in real time, Gemini sings spells.
+"""The arena as an ADK graph: a fight loop, a card reader beside it, and a bard at the end.
 
-Two speeds in one workflow, which is the whole point of putting them together:
+  * `tick` asks the decision model you chose in step 2 (Jev, DiffusionGemma or
+    Gemini Decisions) what to do about the ogre's move, and picks the next edge.
+    It loops on itself until the fight ends, and never waits for the card.
+  * `read_card` fetches the spell card the screen is showing, as an image, and
+    asks Gemini Decisions four choice questions about it: the colour, and the
+    shape in each position. It runs on its own branch, at the same time as the
+    fight. The arena judges the reading and the spell goes into state. The
+    next tick sees `cast` among its options.
+  * `bard` is Gemini, a language model, once, at the end, where prose is wanted.
 
-  * `tick` calls the Discriminative model every few hundred milliseconds and picks the response to
-    whatever the ogre just did. It loops on itself until the fight ends.
-  * `read_rune` fetches the spell card the screen is showing, as an image, and
-    hands it to `spellwright`, which is Gemini. Gemini reads the shapes and
-    sings the matching spell. That takes seconds. It runs on its own branch,
-    in parallel, and the sung spell is judged by the arena and dropped into
-    state. The next tick sees `cast` among its options; the Discriminative model decides when.
-  * `bard` is Gemini once more, at the end, where prose is actually wanted.
-
-  thread 1 (slow):  read_rune ─► spellwright (Gemini, seconds) ─► spell_ready ──┐ writes state["spell"]
-                        ▲                                   "retry" on a fizzle │
-  START ─► enter ─┬─────┘                                                        │
-                  │                                                              ▼ (state, never a call)
-  thread 2 (fast):└─► tick (Discriminative model, ~100 ms) ─► check_spell ─ "again" ─► tick ─► …
-                        │ "recast" after a cast starts thread 1 again
-                        └─ "done" ─► summarise ─► bard (Gemini) ─► finish
+  START ─► enter ─┬─► read_card ─► writes state["spell"]        "again" after a misread
+                  │       ▲
+                  │       └──── "read": a spell was cast, a new card is up
+                  │
+                  └─► tick ─┬─ "next" ─► tick                    reads state["spell"] every tick
+                            └─ "done" ─► summarise ─► bard (Gemini) ─► finish
 
 The workflow plays *against the running arena app* when it can reach one, so
 the page shows the fight as it happens. With no app running it plays the same
@@ -43,15 +41,13 @@ from google.adk.agents import LlmAgent
 from google.adk.agents.context import Context
 from google.adk.events.event import Event
 from google.adk.workflow import Workflow
-from google.genai import types
 from pydantic import BaseModel, Field
-from typesafe_sdk import AsyncTypeSafeClient
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "app"))
 sys.path.insert(0, str(ROOT / "scripts"))
+import decisions  # noqa: E402
 import engine  # noqa: E402
-import jevauth  # noqa: E402
 import reflex  # noqa: E402
 import sigil  # noqa: E402
 
@@ -67,6 +63,9 @@ def load_env(path: Path = ROOT / ".env") -> None:
 
 
 load_env()
+# The card reader and the bard both use the Gemini Developer API with
+# GEMINI_API_KEY. Vertex AI settings left in the shell would send the bard there.
+os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
 
 GEMINI_MODEL = os.environ.get("JEV101_GEMINI_MODEL", "gemini-flash-latest")
 TICK_SECONDS = float(os.environ.get("JEV101_TICK_SECONDS", "0.5"))   # pace, so a person can watch
@@ -108,9 +107,6 @@ class HttpArena:
     def sung(self, sung: dict):
         return self._call("/api/spell/sung", sung)["spell"]
 
-    def check(self, report: dict):
-        self._call("/api/spell/check", report)
-
     def paused(self) -> bool:
         return bool(self._call("/api/fight")["fight"].get("paused"))
 
@@ -145,9 +141,6 @@ class LocalArena:
     def sung(self, sung: dict):
         return self.fight.sing(sung)
 
-    def check(self, report: dict):
-        self.fight.extra["lastCheck"] = {"tick": self.fight.tick, **report}
-
     def paused(self) -> bool:
         return False
 
@@ -168,101 +161,138 @@ def _arena(ctx: Context):
     return _ARENAS[ctx.session.id]
 
 
-# ── the slow branch: read the spell card, sing the spell ──────────────────────────
+# ── reading the spell card: Gemini Decisions, with the Google Gen AI SDK ─────
 
-class Sung(BaseModel):
-    element: str = Field(description="One of: fire, frost, earth, storm. Read it from the colour.")
-    glyphs: list[str] = Field(description="The three shapes, left to right. Each is exactly one of: "
-                                          + ", ".join(sigil.GLYPHS))
-    incantation: str = Field(description="One shouted line under twelve words that names the element.")
+# What a card can be, as choice questions. The criteria describe each option,
+# so the model matches what it sees against words.
+ELEMENTS = {
+    "fire": "The card is red-orange.",
+    "frost": "The card is light blue.",
+    "earth": "The card is green.",
+    "storm": "The card is purple.",
+}
+SHAPES = {
+    "circle": "A solid filled circle.",
+    "ring": "A hollow circle: an outline with an empty middle.",
+    "square": "A solid filled square.",
+    "diamond": "A square turned on its corner.",
+    "triangle": "A solid triangle pointing up.",
+    "cross": "A plus sign.",
+    "crescent": "A circle with a bite taken out of its right side.",
+    "bar": "A flat horizontal line.",
+}
+POSITIONS = {"first": "left", "second": "middle", "third": "right"}
+
+# A decision model picks from options; it does not write. The words of the
+# spell are fixed, one line per element.
+INCANTATIONS = {
+    "fire": "Fire, burn the ogre down!",
+    "frost": "Frost, freeze it where it stands!",
+    "earth": "Earth, rise and break its stride!",
+    "storm": "Storm, strike it from the sky!",
+}
 
 
-def read_rune(ctx: Context, node_input) -> Event:
-    """Grab the spell card off the screen, as an image, and hand it to Gemini."""
+def card_questions() -> dict[str, dict]:
+    """Four choice questions about one image: the colour, and each shape."""
+    questions = {"element": {
+        "type": "choice",
+        "instructions": "What colour is this spell card? The colour is its element.",
+        "criteria": ELEMENTS,
+    }}
+    for position, side in POSITIONS.items():
+        questions[position] = {
+            "type": "choice",
+            "instructions": f"The card shows three shapes in a row. Which shape is the {position} one, on the {side}?",
+            "criteria": SHAPES,
+        }
+    return questions
+
+
+async def read_card(ctx: Context, node_input) -> Event:
+    """Grab the spell card off the screen, as an image, and ask Gemini Decisions
+    what is on it. One call, four answers. The arena judges the reading against
+    the card's answer, which never leaves the server.
+
+    This runs on its own branch. While it awaits the model, the fight keeps
+    ticking. The result lands in state; there is no output, so this branch
+    never ends the graph."""
     arena = _arena(ctx)
-    arena.forging()
-    png = arena.rune_png()
-    content = types.Content(role="user", parts=[
-        types.Part(text="This spell card is on the arena's screen right now. Sing the spell that matches it."),
-        types.Part.from_bytes(data=png, mime_type="image/png"),
-    ])
-    return Event(output=content, state={"forging_since": round(time.perf_counter() - ctx.state.get("t0", 0), 2)})
+    await asyncio.to_thread(arena.forging)
+    png = await asyncio.to_thread(arena.rune_png)
 
+    started = time.perf_counter()
+    answered = await decisions.ask_gemini_async([decisions.image_block(png)], card_questions())
+    ms = round((time.perf_counter() - started) * 1000)
 
-spellwright = LlmAgent(
-    name="spellwright",
-    model=GEMINI_MODEL,
-    description="Reads the spell card on the screen and sings the matching spell.",
-    instruction=(
-        "You are the spellwright for a fighter in an arena. You receive an image of a spell card: a "
-        "coloured border and three shapes in a row. The colour is the element: red-orange is fire, "
-        "light blue is frost, green is earth, purple is storm. Read the three shapes left to right. "
-        "Each is exactly one of: " + ", ".join(sigil.GLYPHS) + ". A ring is a hollow circle; a bar is "
-        "a horizontal line; a crescent is a circle with a bite out of its right side. Return the "
-        "element, the shapes in order, and a short incantation that names the element."
-    ),
-    output_schema=Sung,
-    output_key="sung",
-)
-
-
-def spell_ready(ctx: Context, node_input: dict) -> Event:
-    """The arena judges the song against the spell card. Only the arena knows the
-    answer. The result lands in state; no output, so this branch never ends
-    the graph. A fizzle burns the spell card, so the branch reads the new one."""
-    spell = _arena(ctx).sung(dict(node_input))
-    spell["ready_at"] = round(time.perf_counter() - ctx.state.get("t0", 0), 2)
-    fizzled = spell["damage"] <= 0 and int(ctx.state.get("tick", 0)) < engine.MAX_TICKS
-    return Event(state={"spell": spell if spell["damage"] > 0 else None, "last_song": spell},
-                 route="retry" if fizzled else "stored")
+    read = answered.answers
+    element = read["element"].choice
+    sung = {"element": element, "glyphs": [read[position].choice for position in POSITIONS],
+            "incantation": INCANTATIONS[element],
+            # the model's four answers, so the page can show how the card was read
+            "reading": {"answers": answered.dump(), "model": answered.model,
+                        "latencyMs": ms, "inputTokens": answered.input_tokens}}
+    spell = await asyncio.to_thread(arena.sung, sung)
+    spell["ms"] = ms
+    spell["confidence"] = round(min(answer.confidence for answer in read.values()), 2)
+    spell["at"] = round(time.perf_counter() - ctx.state.get("t0", 0), 2)
+    fizzled = spell["damage"] <= 0                   # a misread burns the card: a new one is up
+    fighting = not ctx.state.get("over") and int(ctx.state.get("tick", 0)) < engine.MAX_TICKS
+    return Event(route="again" if fizzled and fighting else "stored", state={
+        "spell": None if fizzled else spell,
+        "last_song": spell,
+        "card_reads": int(ctx.state.get("card_reads", 0)) + 1,
+        "card_ms": int(ctx.state.get("card_ms", 0)) + ms,
+        "card_tokens": int(ctx.state.get("card_tokens", 0)) + answered.input_tokens,
+    })
 
 
 def rest(node_input) -> None:
-    """Thread 1 has put the spell in the slot. It has nothing to do until the
-    fight casts it and routes "recast". Returning None ends this branch
-    without producing an output, so it is not a second ending of the graph."""
+    """The spell is in state. This branch has nothing to do until the fight
+    casts it and routes "read". Returning None ends the branch without an
+    output, so it is not a second ending of the graph."""
     return None
 
 
-# ── the fast loop ───────────────────────────────────────────────────────────
+# ── the loop ────────────────────────────────────────────────────────────────
 
 def enter(ctx: Context, node_input) -> Event:
-    """Ring the bell. Fan out: the spellwright starts reading, and so does the fight."""
+    """Ring the bell: a new fight, and a clean state. Two edges leave this
+    node, so the card reader and the fight start together."""
     _ARENAS.pop(ctx.session.id, None)
     arena = _arena(ctx)
     arena.new(ctx.state.get("seed"))
     return Event(output="fight", state={"t0": time.perf_counter(), "tick": 0, "spell": None,
                                         "you": engine.YOU_HP, "foe": engine.FOE_HP,
-                                        "jev_tokens": 0, "jev_ms": 0, "spells_cast": 0,
+                                        "jev_tokens": 0, "jev_ms": 0, "spells_cast": 0, "over": False,
+                                        "card_reads": 0, "card_ms": 0, "card_tokens": 0,
                                         "arena": "screen" if isinstance(arena, HttpArena) else "local"})
 
 
 async def tick(ctx: Context, node_input) -> Event:
-    """One exchange. The Discriminative model reads the telegraph, the arena resolves the blow.
-    Async, so the spellwright's branch keeps running while this one waits."""
+    """One exchange. The decision model reads the telegraph, the arena resolves
+    the blow, and the route says where the graph goes next. Async, so the card
+    reader's branch keeps running while this one waits for its model."""
     arena = _arena(ctx)
-    spell = ctx.state.get("spell")                   # the slow branch may have delivered
+    spell = ctx.state.get("spell")                   # what read_card left in state, if it has finished
     await asyncio.sleep(TICK_SECONDS)
-    # Pause on the page holds the fight here, between exchanges. The slow
-    # thread is not held: a spell can finish while the fight is paused.
+    # Pause on the page holds the fight here, between exchanges.
     while await asyncio.to_thread(arena.paused):
         await asyncio.sleep(0.4)
     move = await asyncio.to_thread(arena.telegraph)
 
-    await asyncio.to_thread(jevauth.prepare)      # a Cloud Run token, when that is the backend
     started = time.perf_counter()
-    async with AsyncTypeSafeClient(**jevauth.client_kwargs()) as jev:
-        answers = await jev.system_one(
-            state={"opponent": engine.OPPONENT["description"], "telegraph": move["telegraph"]},
-            questions=reflex.reflex_questions(spell_ready=spell is not None),
-        )
+    answered = await decisions.ask_async(
+        about={"opponent": engine.OPPONENT["description"], "telegraph": move["telegraph"]},
+        questions=reflex.reflex_questions(spell_ready=spell is not None),
+    )
     ms = round((time.perf_counter() - started) * 1000)
 
-    decision = reflex.choose(answers.answers, spell_ready=spell is not None)
+    decision = reflex.choose(answered.answers, spell_ready=spell is not None)
     entry = await asyncio.to_thread(
-        arena.respond, decision["action"], decision,
-        {name: answer.model_dump() for name, answer in answers.answers.items()},
-        {"model": answers.model, "latencyMs": ms, "inputTokens": answers.usage.input_tokens or 0},
+        arena.respond, decision["action"], decision, answered.dump(),
+        {"model": answered.model, "latencyMs": ms, "inputTokens": answered.input_tokens,
+         "costUsd": answered.cost_usd},
     )
     entry["ms"] = ms
     entry["at"] = round(time.perf_counter() - ctx.state.get("t0", 0), 2)
@@ -270,35 +300,20 @@ async def tick(ctx: Context, node_input) -> Event:
 
     delta = {
         "tick": entry["tick"], "you": entry["you"], "foe": entry["foe"], "last": entry,
-        "jev_tokens": int(ctx.state.get("jev_tokens", 0)) + (answers.usage.input_tokens or 0),
+        "jev_tokens": int(ctx.state.get("jev_tokens", 0)) + answered.input_tokens,
+        "jev_cost": float(ctx.state.get("jev_cost", 0.0)) + answered.cost_usd,
         "jev_ms": int(ctx.state.get("jev_ms", 0)) + ms,
     }
-    routes = []
+    routes = []                                      # which edges to follow next
     if entry["spell_used"]:
-        delta["spell"] = None
+        delta["spell"] = None                        # spent: the screen draws a new card
         delta["spells_cast"] = int(ctx.state.get("spells_cast", 0)) + 1
         if not over:
-            routes.append("recast")                  # a new spell card is on the screen: read it
-            delta["forging_since"] = entry["at"]     # thread 1 starts singing again now
-    routes.append("done" if over else "next")
+            routes.append("read")                    # start reading the new card, on its own branch
+    if over:
+        delta["over"] = True
+    routes.append("done" if over else "next")        # and keep fighting, or end
     return Event(output="fight", route=routes, state=delta)
-
-
-def check_spell(ctx: Context, node_input) -> Event:
-    """After every exchange, a glance at the spell slot. It never waits: if
-    Gemini is still singing, it says so and the fight goes on. This is the
-    only place the two branches meet, and they meet through state."""
-    spell = ctx.state.get("spell")
-    now = round(time.perf_counter() - ctx.state.get("t0", 0), 2)
-    if spell:
-        report = {"ready": True, "name": spell.get("incantation"), "waited": None}
-    else:
-        since = ctx.state.get("forging_since")
-        report = {"ready": False, "name": None,
-                  "waited": round(now - since, 1) if since is not None else None}
-    _arena(ctx).check(report)
-    return Event(output="fight", route="again",
-                 state={"spell_check": {"tick": ctx.state.get("tick", 0), "at": now, **report}})
 
 
 # ── Gemini again, at the end, where prose belongs ───────────────────────────
@@ -315,8 +330,8 @@ bard = LlmAgent(
     instruction=(
         "You are the arena's bard. You receive the fight log as JSON: each tick has the ogre's "
         "telegraph, the response chosen, the outcome, and hit points, plus every spell that was "
-        "sung. Retell it in under 80 words, present tense, quoting at least one incantation. "
-        "Say who won."
+        "read from a spell card and cast. Retell it in under 80 words, present tense, quoting at "
+        "least one incantation if a spell was cast. Say who won."
     ),
     output_schema=Tale,
     output_key="tale",
@@ -341,14 +356,12 @@ def finish(ctx: Context, node_input: dict) -> Event:
 
 root_agent = Workflow(
     name="arena",
-    description="The Discriminative model fights tick by tick while Gemini reads spell cards and sings spells in parallel.",
+    description="A decision model fights tick by tick, Gemini Decisions reads the spell cards, and Gemini tells the tale.",
     edges=[
         ("START", enter),
-        (enter, (read_rune, tick)),                   # fan-out: slow branch + fast loop
-        (read_rune, spellwright, spell_ready),
-        (spell_ready, {"retry": read_rune, "stored": rest}),   # misread: read the new spell card; else rest
-        (tick, {"next": check_spell, "recast": read_rune, "done": summarise}),
-        (check_spell, {"again": tick}),               # not ready? keep fighting; ready? cast is offered
+        (enter, (read_card, tick)),                   # fan-out: read the card and fight, together
+        (read_card, {"again": read_card, "stored": rest}),
+        (tick, {"next": tick, "read": read_card, "done": summarise}),
         (summarise, bard, finish),
     ],
 )

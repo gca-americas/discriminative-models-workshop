@@ -1,6 +1,6 @@
 /* Step 6b: the spell card the slow branch sends to Gemini. Picking one copies
    it to branches/spell_card.png (and its answer to spell_card.json), which is
-   what slow_branch.py reads, so the next run reads the card shown here. */
+   what read_card.py reads, so the next run reads the card shown here. */
 
 import { useEffect, useState } from "react";
 

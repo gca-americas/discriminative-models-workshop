@@ -17,7 +17,7 @@ cast a spell with the buttons under the fight: pick the card's color, then
 its shapes from left to right, then press **CAST**. The clock keeps running
 while you pick, so you have to build the spell and react to the ogre's
 attacks at the same time. The keys 1 to 5 still answer each move. A wrong
-spell fizzles. In step 6, Gemini reads the spell card for you.
+spell fizzles. In step 6, a model reads the spell card for you.
 
 :::key
 A fight is a stream of small decisions with a deadline on each one. That is

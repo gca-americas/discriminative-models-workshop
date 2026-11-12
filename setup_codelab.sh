@@ -5,15 +5,14 @@
 # Run ./setup_project.sh FIRST: this script reads the project it recorded in
 # ~/project_id.txt. When it finishes you have:
 #   • uv, a .venv, and exactly what uv.lock pins inside it
-#   • the APIs this lab calls, enabled on that project
-#   • a .env that sends Gemini calls to Vertex AI in your project, with your
-#     own credentials, and a Gemini model the project can call
-#   • one real Gemini call, proven, before any step depends on it
+#   • the APIs DiffusionGemma needs, enabled on that project
+#   • a .env ready for the keys step 2 collects; a Gemini API key already in
+#     it is checked with one real request
 #   • the exercise files in the state students receive, on a first setup only
 #   • the workbench built and running in the background on port 4900
 #
-# It asks nothing. The decision model (Jev, DiffusionGemma, or rehearsal mode)
-# is chosen in step 2 of the workbench, not here.
+# It asks nothing. The decision model (Jev, DiffusionGemma, or Gemini
+# Decisions) and the Gemini API key are set in step 2 of the workbench, not here.
 [ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -71,7 +70,7 @@ uv_sync
     "uv sync finished but .venv/bin/python is missing." \
     "Clear the env and let uv rebuild it:" \
     "  rm -rf .venv && ./setup_codelab.sh"
-tick ".venv in sync with uv.lock (typesafe-sdk $(.venv/bin/python -c 'import importlib.metadata as m;print(m.version("typesafe-sdk"))' 2>/dev/null || echo pinned), google-adk $(.venv/bin/python -c 'import google.adk;print(google.adk.__version__)' 2>/dev/null || echo pinned))"
+tick ".venv in sync with uv.lock (typesafe-sdk $(.venv/bin/python -c 'import importlib.metadata as m;print(m.version("typesafe-sdk"))' 2>/dev/null || echo pinned), google-genai $(.venv/bin/python -c 'import importlib.metadata as m;print(m.version("google-genai"))' 2>/dev/null || echo pinned), google-adk $(.venv/bin/python -c 'import google.adk;print(google.adk.__version__)' 2>/dev/null || echo pinned))"
 
 command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 || die \
     "node and npm are needed to build the workbench page." \
@@ -142,15 +141,14 @@ enable_api() {
         "  ./setup_codelab.sh"
     tick "$api  ($what)"
 }
-enable_api aiplatform.googleapis.com "Gemini, step 6"
 enable_api compute.googleapis.com "the GPU VM for DiffusionGemma, if you choose it in step 2"
 enable_api iap.googleapis.com "the private tunnel to that VM"
 
-# ── 3 · .env: Gemini on Vertex AI in this project; everything else kept ─────
+# ── 3 · .env: ready for step 2; a Gemini API key already there is checked ───
 say "2 · .env"
 
 [ -f .env ] || cp .env.example .env
-# Kept until the end of the Gemini step: if this run changes .env, the old one
+# Kept until the end of this step: if this run changes .env, the old one
 # becomes .env.bak; if it changes nothing, the last .env.bak stays as it was.
 cp .env .env.before
 set_env() {         # set_env KEY VALUE: replace or add one line, keep the rest
@@ -162,58 +160,37 @@ unset_env() {       # unset_env KEY: remove its line
     grep -v "^$1=" .env > .env.tmp || true
     mv .env.tmp .env
 }
-set_env GOOGLE_GENAI_USE_VERTEXAI 1
-set_env GOOGLE_CLOUD_PROJECT "$PROJECT"
-set_env GOOGLE_CLOUD_LOCATION global
-# Vertex AI bills user credentials to a quota project. The Python clients read
-# this one, so .env alone is enough even if the credentials name another project.
-set_env GOOGLE_CLOUD_QUOTA_PROJECT "$PROJECT"
-# Gemini goes through Vertex AI only. An AI Studio key left in .env would be a
-# second, competing way in, so it goes (.env.bak still has it).
-for key in GOOGLE_API_KEY GEMINI_API_KEY; do
+# The lab reaches Gemini with an API key only (the Gemini Developer API).
+# Vertex AI settings from an earlier version of this lab would send Gemini
+# calls there instead, so they go (.env.bak still has them).
+for key in GOOGLE_GENAI_USE_VERTEXAI GOOGLE_CLOUD_LOCATION GOOGLE_CLOUD_QUOTA_PROJECT; do
     if grep -q "^$key=" .env; then
         unset_env "$key"
-        info "removed $key from .env: Gemini uses Vertex AI in your project instead"
+        info "removed $key from .env: Gemini uses an API key now"
     fi
 done
-tick "Gemini → Vertex AI in $PROJECT, location global (application default credentials, no key)"
-
-# Vertex AI authenticates with application default credentials. Cloud Shell
-# has them; a laptop needs one login.
-if ! gcloud auth application-default print-access-token >/dev/null 2>&1 < /dev/null; then
-    warn "no application default credentials, so Vertex AI cannot be called yet. Run:"
-    warn "  gcloud auth application-default login"
-    warn "then re-run ./setup_codelab.sh"
-else
-    # Credentials from `gcloud auth application-default login` need a quota
-    # project, or Vertex AI answers 403 PERMISSION_DENIED. Cloud Shell's
-    # credentials have no file and need none.
-    ADC_FILE="${CLOUDSDK_CONFIG:-$HOME/.config/gcloud}/application_default_credentials.json"
-    if [ -f "$ADC_FILE" ]; then
-        QUOTA="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("quota_project_id", ""))' "$ADC_FILE" 2>/dev/null || true)"
-        if [ "$QUOTA" = "$PROJECT" ]; then
-            tick "application default credentials bill to $PROJECT"
-        elif gcloud auth application-default set-quota-project "$PROJECT" >/dev/null 2>&1 < /dev/null; then
-            tick "application default credentials now bill to $PROJECT (was: ${QUOTA:-none})"
-        else
-            warn "could not set $PROJECT as the quota project of your application default credentials."
-            warn "  .env sets GOOGLE_CLOUD_QUOTA_PROJECT, which the workshop's Python code uses."
-            warn "  To fix it for other tools too:  gcloud auth application-default set-quota-project $PROJECT"
-        fi
-    fi
-fi
+set_env GOOGLE_CLOUD_PROJECT "$PROJECT"
+tick "project $PROJECT recorded, for DiffusionGemma if you choose it"
 info "the decision model's settings in .env are left as they are; step 2 sets them"
 
-# ── 4 · prove Gemini answers, with a model this project can call ────────────
-say "3 · Live Gemini call"
-# pick_gemini_model.py makes one tiny request with the configured model, and if
-# the project does not have it, tries the newest Flash model the project lists.
-if GEMINI_NAME="$(.venv/bin/python scripts/pick_gemini_model.py < /dev/null)"; then
-    set_env JEV101_GEMINI_MODEL "$GEMINI_NAME"
-    tick "$GEMINI_NAME answered; saved as JEV101_GEMINI_MODEL"
+# ── 4 · the Gemini API key, if one is already here ──────────────────────────
+say "3 · Gemini API key"
+# Step 2 asks for the key and checks it. A key already in .env is checked now,
+# and the Gemini model for the tale in step 6 is picked with it.
+if grep -q '^GEMINI_API_KEY=.' .env; then
+    if .venv/bin/python scripts/verify_gemini_key.py < /dev/null; then
+        tick "the Gemini API key in .env works"
+        if GEMINI_NAME="$(.venv/bin/python scripts/pick_gemini_model.py < /dev/null)"; then
+            set_env JEV101_GEMINI_MODEL "$GEMINI_NAME"
+            tick "$GEMINI_NAME answered; saved as JEV101_GEMINI_MODEL"
+        else
+            warn "no Gemini Flash model answered with this key. The tale in step 6 needs one."
+        fi
+    else
+        warn "the Gemini API key in .env did not work. Step 2 lets you enter another."
+    fi
 else
-    warn "no Gemini model answered. Step 6 needs one; everything before it works without."
-    warn "check again later with:  .venv/bin/python scripts/pick_gemini_model.py"
+    info "no Gemini API key yet. Step 2 asks for one: https://aistudio.google.com/apikey"
 fi
 if cmp -s .env .env.before; then
     rm -f .env.before
@@ -229,7 +206,7 @@ fi
 # the way the workshop ships them, run scripts/starter.sh.
 say "4 · Starting state"
 placed=0
-for f in scripts/first_call.py branches/slow_branch.py branches/fast_branch.py; do
+for f in scripts/first_call.py branches/read_card.py branches/fight_loop.py; do
     if [ ! -f "$f" ]; then
         mkdir -p "$(dirname "$f")" && cp "starter/$f" "$f"
         placed=$((placed + 1))
@@ -288,7 +265,8 @@ printf '\n\033[1m%s\033[0m\n' "Setup finished. The workbench is already running.
 printf '\n'
 printf '  \033[1mOpen this and start at step 0\033[0m\n'
 printf '      %s/step/introduction\n\n' "$LAB_URL"
-printf '  Step 2 chooses the decision model: Jev, DiffusionGemma, or rehearsal mode.\n\n'
+printf '  Step 2 chooses the decision model (Jev, DiffusionGemma, or Gemini Decisions)\n'
+printf '  and takes your Gemini API key: https://aistudio.google.com/apikey\n\n'
 printf '  It runs in the background. You do not need to start anything else.\n'
 printf '      log      runs/workbench.log\n'
 printf '      stop     scripts/stop.sh\n'

@@ -2,43 +2,117 @@
 
    Start launches the ADK workflow on the server (app/mode_workflow.py). From
    then on the workflow plays and this page only watches: it polls the fight
-   and draws each tick, with the model's answer cards from step 5. After
-   every exchange the workflow checks the spell slot, and the spell card in
-   the corner pings. */
+   and draws each tick, with the model's answer cards from step 5. When the
+   workflow reads the spell card, the card in the corner lights up and the
+   SPELL CARD panel shows the four answers Gemini Decisions gave. */
 
 (() => {
   let pollHandle = null;
-  let lastCheckTick = -1;
   let wasReady = false;
-  let wasForging = false;
+  let wasReading = false;
+  let lastRead = "";
 
-  /* Thread 2 glances at thread 1's slot once per tick: the corner pings,
-     and bursts the first time the spell is ready. */
+  // How the card was read: one card per question, above the fight's answers.
+  const QUESTIONS = [
+    ["element", "Element", "What colour is the card? The colour is its element."],
+    ["first", "First shape", "Which shape is on the left?"],
+    ["second", "Second shape", "Which shape is in the middle?"],
+    ["third", "Third shape", "Which shape is on the right?"],
+  ];
+  const reading = `
+    <style>#card-reading .bar-row { grid-template-columns: 58px 1fr 30px; }</style>
+    <div id="card-reading" class="jev" hidden>
+      <div class="label">SPELL CARD · what Gemini Decisions read <span id="read-label"></span></div>
+      <div class="three" style="grid-template-columns: repeat(4, minmax(0, 1fr))">
+        ${QUESTIONS.map(([id, title, hint]) => `
+        <div class="panel">
+          <div class="card-title">${title} <span class="prim">choice</span></div>
+          <div class="card-hint">${hint}</div>
+          <div id="read-${id}" class="bars"><div class="empty">not read yet</div></div>
+          <div id="read-${id}-foot" class="foot"></div>
+        </div>`).join("")}
+      </div>
+      <div id="read-meta" class="meta"></div>
+    </div>`;
+  if ($("answers")) $("answers").insertAdjacentHTML("beforebegin", reading);
+  else $("mode-panels").insertAdjacentHTML("beforeend", reading);
+
+  function bars(target, entries, winner) {
+    target.innerHTML = "";
+    for (const [name, value] of entries) {
+      const row = document.createElement("div");
+      row.className = "bar-row" + (name === winner ? " win" : "");
+      row.innerHTML = `<span class="name"></span><div class="track"><div class="fill"></div></div><span class="value"></span>`;
+      row.querySelector(".name").textContent = name;
+      row.querySelector(".value").textContent = value.toFixed(2);
+      target.appendChild(row);
+      requestAnimationFrame(() => (row.querySelector(".fill").style.width = `${Math.round(value * 100)}%`));
+    }
+  }
+
+  function drawReading(read) {
+    for (const [id] of QUESTIONS) {
+      const answer = read.answers[id];
+      if (!answer) continue;
+      const top = Object.entries(answer.probabilities).sort((a, b) => b[1] - a[1]).slice(0, 4);
+      bars($(`read-${id}`), top, answer.choice);
+      $(`read-${id}-foot`).innerHTML = `choice <b>${answer.choice}</b> · confidence <b>${answer.confidence.toFixed(2)}</b>`;
+    }
+    $("read-label").textContent = `· card ${read.n}`;
+    $("read-meta").innerHTML = [
+      `<span>model <b>${read.model || "?"}</b></span>`,
+      `<span>latency <b>${read.latencyMs} ms</b></span>`,
+      `<span>input tokens <b>${read.inputTokens}</b></span>`,
+      `<span>the arena judged it <b>${read.verdict} · ${read.damage} dmg</b></span>`,
+    ].join("");
+  }
+
+  function clearReading() {
+    lastRead = "";
+    for (const [id] of QUESTIONS) {
+      $(`read-${id}`).innerHTML = '<div class="empty">not read yet</div>';
+      $(`read-${id}-foot`).innerHTML = "";
+    }
+    $("read-label").textContent = "";
+    $("read-meta").innerHTML = "";
+  }
+
+  onHook("mode", (m) => {
+    $("card-reading").hidden = m.id !== "workflow";
+  });
+
+  /* The spell corner follows the workflow: reading the card, then ready. */
   onHook("fight", (fight) => {
     if (mode !== "workflow") return;
-    const forging = fight.spellStatus === "forging" && !fight.spell;
-    if (forging && !wasForging) sfx("charge", 0.4);      // Gemini starts reading the card
-    wasForging = forging;
-    if (!fight.spell && fight.spellStatus !== "forging") {
-      $("spell-status").textContent = "EMPTY · waiting for the spellwright";
-    } else if (fight.spellStatus === "forging" && !fight.spell) {
-      $("spell-status").textContent = "SINGING… Gemini is reading the spell card";
+    const ready = Boolean(fight.spell);
+    const reading = fight.spellStatus === "forging" && !ready;
+    if (reading && !wasReading) sfx("charge", 0.4);      // read_card starts
+    wasReading = reading;
+    if (reading) {
+      $("spell-status").textContent = "READING… Gemini Decisions is reading the spell card";
+    } else if (!ready) {
+      $("spell-status").textContent = "EMPTY · waiting for the card reader";
     }
-    const c = fight.lastCheck;
-    if (!c || c.tick === lastCheckTick) return;
-    lastCheckTick = c.tick;
-    const corner = $("spell-corner");
-    corner.classList.remove("ping", "ready-burst");
-    void corner.offsetWidth;
-    corner.classList.add(c.ready && !wasReady ? "ready-burst" : "ping");
-    if (c.ready && !wasReady) sfx("ready", 0.7);
-    wasReady = c.ready;
+    const read = fight.lastRead;
+    const readKey = read ? [read.n, read.tick, read.latencyMs].join(":") : "";
+    if (read && readKey !== lastRead) {
+      lastRead = readKey;
+      drawReading(read);
+    }
+    if (ready && !wasReady) {
+      const corner = $("spell-corner");
+      corner.classList.remove("ping", "ready-burst");
+      void corner.offsetWidth;
+      corner.classList.add("ready-burst");
+      sfx("ready", 0.7);
+    }
+    wasReady = ready;
   });
 
   onHook("reset", () => {
-    lastCheckTick = -1;
     wasReady = false;
-    wasForging = false;
+    wasReading = false;
+    clearReading();
   });
 
   async function poll() {
@@ -83,10 +157,8 @@
     rules: false,
     showsAnswers: true,
     watches: true,
-    pauseText: "paused · the workflow waits after this exchange (Gemini keeps singing)",
+    pauseText: "paused · the fight waits after this exchange (a card being read still finishes)",
     async start() {
-      // Thread 2 (the Discriminative model) starts ticking and thread 1
-      // (Gemini) starts reading the spell card, at the same moment.
       $("caption").textContent = "RINGING THE BELL · STARTING THE ADK WORKFLOW…";
       $("status").textContent = "starting the workflow…";
       try {

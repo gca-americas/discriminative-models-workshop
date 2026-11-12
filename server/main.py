@@ -1,4 +1,4 @@
-"""The Getting started with Discriminative (Jev/DiffusionGemma) models workbench server.
+"""The Getting started with Discriminative models (Jev/Gemini Decisions) workbench server.
 
 Serves the API and, in production, the built page. In development the Vite dev
 server proxies /api here instead.
@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
         yield
 
 
-app = FastAPI(title="Getting started with Discriminative (Jev/DiffusionGemma) models", lifespan=lifespan)
+app = FastAPI(title="Getting started with Discriminative models (Jev/Gemini Decisions)", lifespan=lifespan)
 app.include_router(router)
 
 

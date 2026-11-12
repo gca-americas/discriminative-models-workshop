@@ -2,9 +2,9 @@ slug: the-workflow
 title: Combine models in an ADK workflow
 kicker: Step 6
 part: build
-minutes: 15
+minutes: 12
 color: emerald
-summary: Build an ADK graph workflow that calls the discriminative model every tick and Gemini on a parallel branch.
+summary: Build an ADK graph workflow where a decision model fights, Gemini Decisions reads the spell card beside it, and Gemini writes the tale.
 
 parts:
   - id: a
@@ -14,219 +14,266 @@ parts:
 
   - id: b
     label: Implementation
-    headline: Fan-out, loop, and shared state
+    headline: Read the card, run the loop
     body: b-the-code.md
     exercises:
-      slow:
-        title: Run the slow branch on its own
-        intro: '`branches/slow_branch.py` is the slow branch as a workflow of its own:
-          one spell card image, Gemini, and a check. Nothing from the arena. Build its
-          two missing pieces, then run it.'
+      card:
+        title: Read a spell card
+        intro: >
+          `branches/read_card.py` reads one spell card with Gemini Decisions,
+          as a small workflow of its own. Add the two missing parts, then run
+          it.
         tasks:
         - kind: assemble
-          id: slow-image
-          title: Send the image to Gemini
-          file: branches/slow_branch.py
+          id: card-question
+          title: Ask about the color
+          file: branches/read_card.py
           symbols:
-          - show_card
-          explain: '`show_card` sends Gemini a line of text, but not the card. Drag
-            the piece that adds the card to the message into the slot, then check and
-            save. To see what Gemini does without the image, run the branch once before
-            you change anything.'
-          template: "def show_card(ctx: Context, node_input) -> Event:\n    \"\"\"Send\
-            \ the spell card to Gemini: a line of text and the image itself.\"\"\"\n\
-            \    png = CARD.read_bytes()\n    return Event(output=types.Content(role=\"\
-            user\", parts=[\n        types.Part(text=\"Here is a spell card. Read it\
-            \ and sing the matching spell.\"),\n        {{image}}\n    ]), state={\"\
-            sent_at\": time.perf_counter()})\n"
+          - QUESTIONS
+          explain: >
+            The three shape questions are already there. Build the
+            `"element"` question: its type, and the options the model chooses
+            from. Then check and save.
+          template: |
+            QUESTIONS = {
+                "element": {
+                    {{kind}}
+                    "instructions": "What colour is this spell card? The colour is its element.",
+                    {{criteria}}
+                },
+                "first": shape_question("first", "left"),
+                "second": shape_question("second", "middle"),
+                "third": shape_question("third", "right"),
+            }
+          slots:
+            kind:
+              answer: [choice]
+              one: true
+              label: the kind of question
+            criteria:
+              answer: [elements]
+              one: true
+              label: the options the model chooses from
+          pieces:
+          - id: choice
+            code: '"type": "choice",'
+          - id: noul
+            code: '"type": "noul",'
+            why: >
+              A Noul answers yes or no. The card has one of four elements, so
+              this is a Choice.
+          - id: elements
+            code: '"criteria": ELEMENTS,'
+          - id: shapes
+            code: '"criteria": SHAPES,'
+            why: >
+              `SHAPES` describes the eight shapes. This question is about the
+              color, and `ELEMENTS` maps each color to its element.
+          - id: quoted
+            code: '"criteria": "ELEMENTS",'
+            why: >
+              In quotes, `"ELEMENTS"` is the word itself, not the dict of four
+              elements. Use the variable without quotes.
+          hints:
+          - Picking one of four elements is a `choice` question.
+          - The criteria are the options. `ELEMENTS` describes each one by its color.
+          context: |
+            ELEMENTS = {
+                "fire": "The card is red-orange.",
+                "frost": "The card is light blue.",
+                "earth": "The card is green.",
+                "storm": "The card is purple.",
+            }
+        - kind: assemble
+          id: card-image
+          title: Send the image
+          file: branches/read_card.py
+          symbols:
+          - read_card
+          explain: >
+            `read_card` calls Gemini Decisions with the questions, but its
+            `input` is empty. Drag in the block that sends the card, then check
+            and save.
+          template: |
+            async def read_card(ctx: Context, node_input) -> Event:
+                """Send the spell card to Gemini Decisions and ask what is on it."""
+                png = CARD.read_bytes()
+                client = genai.Client(vertexai=False, api_key=os.environ["GEMINI_API_KEY"],
+                                      http_options={"api_version": "v1beta"})
+                started = time.perf_counter()
+                result = await client.aio.decisions.create(
+                    model="gemini-decision-1",
+                    input=[
+                        {{image}}
+                    ],
+                    questions=QUESTIONS,
+                )
+                ms = round((time.perf_counter() - started) * 1000)
+                reading = {name: {"choice": result.answers[name].choice,
+                                  "confidence": round(result.answers[name].confidence, 2)}
+                           for name in QUESTIONS}
+                return Event(output=reading, state={"reading": reading, "ms": ms,
+                                                    "tokens": result.usage.total_input_tokens})
           slots:
             image:
-              answer:
-              - bytes
+              answer: [bytes]
               one: true
-              label: the card itself, as a part Gemini can see
+              label: the card itself, as a block the model can see
           pieces:
           - id: bytes
-            code: types.Part.from_bytes(data=png, mime_type="image/png"),
+            code: '{"type": "image", "mime_type": "image/png", "data": base64.b64encode(png).decode()},'
           - id: text
-            code: types.Part(text=png),
-            why: '`types.Part(text=...)` sends text. The card is an image, so Gemini
-              needs it as image bytes.'
+            code: '{"type": "text", "text": "spell_card.png"},'
+            why: >
+              That sends the file's name as text. The model cannot open a file
+              on this machine; it needs the image itself.
           - id: uri
-            code: types.Part.from_uri(file_uri="spell_card.png", mime_type="image/png"),
-            why: '`from_uri` points Gemini at a file it can fetch, such as one in Cloud
-              Storage. Gemini cannot read a file on this machine; send the bytes you
-              already read into `png`.'
+            code: '{"type": "image", "mime_type": "image/png", "uri": "spell_card.png"},'
+            why: >
+              A `uri` has to be a web address the API can fetch. The card is a
+              local file, already read into `png`, so send its bytes as `data`.
           hints:
-          - The card goes in the same `parts` list as the text, as one more part, and
-            it is already read into `png`.
-          - 'A part made from bytes needs the bytes and what they are: `image/png`.'
-        - kind: assemble
-          id: slow-agent
-          title: Define the agent
-          file: branches/slow_branch.py
-          symbols:
-          - reader
-          explain: '`reader` has a name and a model, but no instructions and no shape
-            for its answer. `Spell` and `INSTRUCTION`, shown above it, are already in
-            the file. Drag in the arguments `reader` needs, in any order, then check
-            and save. The graph hands `reader`''s answer straight to `check`, so it
-            does not need to be kept anywhere else.'
-          template: "reader = LlmAgent(\n    name=\"reader\",\n    model=GEMINI_MODEL,\n\
-            \    {{args}}\n)\n"
-          slots:
-            args:
-              answer:
-              - instruction
-              - schema
-              label: what reader is told to do, and the shape its answer must have
-          pieces:
-          - id: instruction
-            code: instruction=INSTRUCTION,
-          - id: schema
-            code: output_schema=Spell,
-          - id: tools
-            code: tools=[show_card],
-            why: '`tools` are functions the model may decide to call. The card does
-              not come from a tool: the graph hands `show_card`''s output to `reader`
-              as its user turn.'
-          - id: free
-            code: output_schema=str,
-            why: '`output_schema=str` lets Gemini answer in any words. `check` needs
-              an element and three glyphs, which is the `Spell` schema.'
-          - id: vague
-            code: instruction="Describe the image.",
-            why: That instruction never says what a spell card is or how to read one.
-              `INSTRUCTION` above spells it out.
-          hints:
-          - An `LlmAgent` needs to know what to do, and what shape its answer must have
-            so `check` can read it.
-          - 'Two pieces: the `INSTRUCTION` above, and the `Spell` schema.'
-          context: "class Spell(BaseModel):\n    element: str          # fire, frost,\
-            \ earth or storm: the colour of the border\n    glyphs: list[str]     #\
-            \ the three shapes, left to right\n    incantation: str      # one shouted\
-            \ line that names the element\n\n\n# What the reader is told, every time.\
-            \ The card itself arrives as its user turn.\nINSTRUCTION = (\n    \"You\
-            \ read spell cards. A card has a coloured border and three \"\n    \"shapes\
-            \ in a row. The colour is the element: red-orange is fire, \"\n    \"light\
-            \ blue is frost, green is earth, purple is storm. Read the \"\n    \"three\
-            \ shapes left to right. Each is exactly one of: circle, ring, \"\n    \"\
-            square, diamond, triangle, cross, crescent, bar. A ring is a \"\n    \"\
-            hollow circle; a bar is a horizontal line; a crescent is a circle \"\n \
-            \   \"with a bite out of its right side. Return the element, the shapes\
-            \ \"\n    \"in order, and a short incantation that names the element. If\
-            \ there \"\n    \"is no image, say so in the incantation and guess.\"\n\
-            )\n"
+          - The block's type is `image`, and the card is already read into `png`.
+          - Image bytes travel as base64 text in `data`, with the `mime_type` that says what they are.
         - kind: terminal
-          id: slow-run
-          title: Run the slow branch
+          id: card-run
+          title: Read the card
           expect:
-          - python3 branches/slow_branch.py
-          explain: Choose a spell card, then run `python3 branches/slow_branch.py`.
-            It prints what Gemini read, the card's real answer, and whether they match.
-            Gemini takes a few seconds, which is why this branch is the slow one. Choose
-            another card and run it again.
+          - python3 branches/read_card.py
+          explain: >
+            Choose a spell card, then run `python3 branches/read_card.py`. It
+            prints the four answers with their confidence, the card's real
+            answer, and whether they match. Choose another card and run it
+            again.
           cards: true
-          showFile: branches/slow_branch.py
-      fast:
-        title: Run the fast branch on its own
-        intro: '`branches/fast_branch.py` is the fast branch as a workflow of its own:
-          a list of moves, the Discriminative model, and a loop. Nothing from the arena.
-          Assemble its `tick`, then run it.'
+          showFile: branches/read_card.py
+      loop:
+        title: Run the fight loop
+        intro: >
+          `branches/fight_loop.py` is the loop as a small workflow of its own:
+          a list of moves, your decision model, and a route. Assemble its
+          `tick`, then run it.
         tasks:
         - kind: assemble
-          id: fast-tick
+          id: loop-tick
           title: Assemble tick
-          file: branches/fast_branch.py
+          file: branches/fight_loop.py
           symbols:
           - tick
-          explain: '`tick` takes the next move, asks the model which response is right,
-            reads the answer, and picks the next edge. Drag the pieces into the slots,
-            then check and save. The call and its answer go in the middle; the last
-            two slots decide whether the loop goes on.'
-          template: "async def tick(ctx: Context, node_input) -> Event:\n    \"\"\"\
-            One move, one decision, then pick the next edge.\"\"\"\n    number = int(ctx.state.get(\"\
-            tick\", 0)) + 1\n    move = MOVES[number - 1]\n\n    started = time.perf_counter()\n\
-            \    async with AsyncTypeSafeClient(**client_kwargs()) as model:\n     \
-            \   answers = await {{call}}\n            {{request}}\n        )\n    ms\
-            \ = round((time.perf_counter() - started) * 1000)\n    response = {{answer}}\n\
-            \    decision = {\"tick\": number, \"move\": move, \"action\": response.choice,\n\
-            \                \"confidence\": round(response.confidence, 2), \"ms\":\
-            \ ms}\n\n    {{over}}\n\n    {{routes}}\n\n    return Event(output=decision,\
-            \ route=routes,\n                 state={\"tick\": number, \"decisions\"\
-            : [*ctx.state.get(\"decisions\", []), decision]})\n"
+          explain: >
+            `tick` takes the next move, asks the model which response is
+            right, reads the answer, and picks the next edge. `ask_async` is
+            the workshop's helper: it takes the same arguments for every
+            model. Drag the pieces into the slots, then check and save.
+          template: |
+            async def tick(ctx: Context, node_input) -> Event:
+                """One move, one decision, then pick the next edge."""
+                number = int(ctx.state.get("tick", 0)) + 1
+                move = MOVES[number - 1]
+
+                started = time.perf_counter()
+                answered = await {{call}}
+                    {{request}}
+                )
+                ms = round((time.perf_counter() - started) * 1000)
+                response = {{answer}}
+                decision = {"tick": number, "move": move, "action": response.choice,
+                            "confidence": round(response.confidence, 2), "ms": ms,
+                            "model": answered.model, "sdk": answered.sdk}
+
+                {{over}}
+
+                {{route}}
+
+                return Event(output=decision, route=route,
+                             state={"tick": number, "decisions": [*ctx.state.get("decisions", []), decision]})
+          context: |
+            QUESTIONS = {
+                "response": {
+                    "type": "choice",
+                    "instructions": "The opponent has just done this. What is the right response?",
+                    "criteria": RESPONSES,
+                },
+            }
           slots:
             call:
-              answer:
-              - call
+              answer: [call]
               one: true
-              label: the call that asks the Discriminative model
+              label: the call that asks the decision model
             request:
-              answer:
-              - state
-              - questions
-              label: what to judge (state) and what to ask about it (questions)
+              answer: [about, questions]
+              label: what the model judges, and the questions about it
             answer:
-              answer:
-              - choice
+              answer: [choice]
               one: true
               label: the model's answer to the "response" question
             over:
-              answer:
-              - over
+              answer: [over]
               one: true
               label: true when this tick played the last move
-            routes:
-              answer:
-              - routes
+            route:
+              answer: [route]
               one: true
               label: 'the edge to take next: "next" or "done"'
           pieces:
           - id: call
-            code: model.system_one(
-          - id: state
-            code: 'state={"opponent": OPPONENT, "telegraph": move},'
+            code: ask_async(
+          - id: about
+            code: 'about={"opponent": OPPONENT, "telegraph": move},'
           - id: questions
-            code: "questions={\"response\": Choice(\n    instructions=\"The opponent\
-              \ has just done this. What is the right response?\",\n    criteria=RESPONSES)},"
+            code: questions=QUESTIONS,
           - id: choice
-            code: answers.choices["response"]
+            code: answered.answers["response"]
           - id: over
             code: over = number >= len(MOVES)
-          - id: routes
-            code: routes = ["done" if over else "next"]
-          - id: generate
-            code: model.generate(
-            why: '`generate` is how a language model writes text. A Discriminative model
-              is asked with `system_one`: state and typed questions, typed answers.'
+          - id: route
+            code: route = "done" if over else "next"
           - id: chat
             code: 'messages=[{"role": "user", "content": move}],'
-            why: '`system_one` does not take a chat. It takes `state`, what to judge,
-              and `questions`, what to ask about it.'
-          - id: noul
-            code: answers.nouls["response"]
-            why: '`response` was asked as a Choice, so its answer is in `answers.choices`.
-              `answers.nouls` holds yes/no questions.'
+            why: >
+              A decision model does not take a chat. It takes what to judge
+              and the questions about it.
+          - id: raw-input
+            code: input=move,
+            why: >
+              `input` is the Google Gen AI SDK's own name for it, and `state`
+              is the TypeSafe SDK's. `ask_async` takes `about` for every model
+              and passes it on under the right name.
+          - id: adk-state
+            code: 'state=ctx.state,'
+            why: >
+              `ctx.state` is the workflow's shared state: the tick counter and
+              the decisions so far. The model judges the move, passed as
+              `about`.
+          - id: exposed
+            code: answered.answers["exposed"]
+            why: >
+              This tick asks one question, named `"response"`. Answers come
+              back under the name of the question.
           - id: past
             code: over = number > len(MOVES)
-            why: '`number` counts from 1, so the last move is `number == len(MOVES)`.
-              With `>`, the loop asks for a move that does not exist.'
+            why: >
+              `number` counts from 1, so the last move is `number ==
+              len(MOVES)`. With `>`, the loop asks for a move that does not
+              exist.
           - id: never
-            code: routes = ["next"]
+            code: route = "next"
             why: 'Always `"next"` never ends: after the last move the loop needs `"done"`.'
           hints:
-          - 'The model''s call is `system_one`, and it takes two arguments: `state`,
-            what to judge, and `questions`, what to ask about it.'
-          - '`response` is asked as a Choice, so its answer is in `answers.choices`.
-            `over` is true on the last move, when `number` equals `len(MOVES)`, and
-            then the route is `"done"`.'
+          - 'The call is `ask_async`, and it takes two arguments: `about`, what the model judges, and `questions`, already defined above tick as `QUESTIONS`.'
+          - >
+            The answer is under the question's name, `"response"`. `over` is
+            true on the last move, when `number` equals `len(MOVES)`, and then
+            the route is `"done"`.
         - kind: terminal
-          id: fast-run
-          title: Run the fast branch
+          id: loop-run
+          title: Run the loop
           expect:
-          - python3 branches/fast_branch.py
-          explain: 'It prints one line per tick: the move, the model''s response, its
-            confidence and how long the call took. All five moves should play.'
+          - python3 branches/fight_loop.py
+          explain: >
+            It prints the model and SDK that answered, then one line per
+            tick: the move, the model's response, its confidence and how long
+            the call took. All five moves should play.
 
   - id: c
     label: Graph
@@ -252,10 +299,11 @@ parts:
         explain: 'If the bar says the game is in Discriminative model mode, press
           "Update game to workflow mode". The files marked NEW are what this step
           adds to the game: `mode_workflow.py` starts the ADK workflow and receives
-          its moves and spells, and `static/modes/workflow.js` draws them on the page.
-          Open `main.py` and `static/app.js` to see the highlighted lines that load
-          them. The workflow itself is `agents/arena/agent.py`, also marked NEW:
-          the graph and branches from parts b and c, which `mode_workflow.py` runs.'
+          its moves and card readings, and `static/modes/workflow.js` draws them
+          on the page. Open `main.py` and `static/app.js` to see the highlighted
+          lines that load them. The workflow itself is `agents/arena/agent.py`,
+          also marked NEW: the nodes and the graph from parts b and c, which
+          `mode_workflow.py` runs.'
         highlight: HERE\.glob\("mode_\*\.py"\)|import_module\(path\.stem\)|^PLUGINS
           = load_plugins|^MODES = |loadScript\(`modes/
         highlightLabel: main.py and static/app.js do not change in this step. Their
@@ -265,10 +313,13 @@ parts:
         id: watch
         title: Arena app
         appTitle: Arena
-        explain: 'The arena opens in "Workflow fights". Press Start. The fight begins
-          straight away. Watch the badge at the top of the stage: every tick, the
-          fighter checks the spell slot and says "not ready" until Gemini''s song
-          lands. Restart runs a fresh fight.'
+        explain: 'The arena opens in "Workflow fights". Press Start. Watch the
+          spell card in the corner: the workflow reads it while the fight goes on,
+          the tag says SPELL READY, and the fighter casts on the next opening.
+          Then a new card appears and the workflow reads that one. Under the ring, the SPELL
+          CARD panel shows what Gemini Decisions answered for the color and
+          each shape, with its confidence. The REFLEX panel below it shows the
+          fight''s answers, as in step 5. Restart runs a fresh fight.'
         appMode: workflow
     checks:
     - id: workflow-mode
@@ -278,31 +329,30 @@ parts:
       value: '"id": "workflow"'
       hint: Press "Update game to workflow mode" in the file explorer above.
     - id: gemini-ready
-      label: Gemini credentials are configured
+      label: Gemini API key is set
       probe: python3 scripts/check_setup.py
       assert: not_contains
       value: gemini          not set up
-      hint: Run ./setup_codelab.sh again. It points Gemini at Vertex AI in your project.
+      hint: Go back to step 2, paste a Gemini API key, and press Set up.
     - id: arena-runs
       label: Workflow completed a match
       probe: curl -s http://127.0.0.1:$APP_PORT/api/fight
       assert: matches
       value: '"mode": "workflow".*"over": true'
       hint: Press Start in the arena app above, in Workflow fights, and let the match
-        end. This reads the fight on the arena's screen. The fight needs both the
-        Discriminative model and Gemini. If it stops early, check the model light at
-        the top right, and the Gemini check in the Gemini access card above.
+        end. This reads the fight on the arena's screen. The fight needs your
+        decision model and the Gemini API key. If it stops early, check the two
+        lights at the top right.
     exercises:
       gemini:
-        title: Verify Gemini access
+        title: Verify the Gemini API key
         tasks:
         - kind: terminal
           id: check
-          title: Verify Gemini access
+          title: Verify the Gemini API key
           expect:
-          - cat .env
-          explain: Run `cat .env`. This is the file at the root of the workshop where
-            setup saved your settings. For Gemini, look for `GOOGLE_GENAI_USE_VERTEXAI=1`,
-            `GOOGLE_CLOUD_PROJECT` and `JEV101_GEMINI_MODEL`. If they are missing,
-            run `./setup_codelab.sh` again and print it again. The file holds your
-            keys too, so keep it off shared screens.
+          - python3 scripts/check_setup.py
+          explain: Run `python3 scripts/check_setup.py`. The `gemini` line shows
+            the key the workflow will use, with most of it hidden. If it says
+            `not set up`, go back to step 2, paste a Gemini API key, and press
+            Set up.

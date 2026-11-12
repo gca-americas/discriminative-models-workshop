@@ -10,61 +10,11 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import { CodePopup } from "../components/CodePopup";
-
-const label = { fontSize: 11, fill: "var(--fg-muted)", fontFamily: "inherit" } as const;
-const faint = { fontSize: 10.5, fill: "var(--fg-faint)", fontFamily: "inherit" } as const;
-const strong = { fontSize: 12, fill: "var(--fg)", fontWeight: 600, fontFamily: "inherit" } as const;
-const mono = { fontSize: 10.5, fill: "var(--fg-muted)", fontFamily: "ui-monospace, monospace" } as const;
-
-function Arrow({ id, color }: { id: string; color: string }) {
-  return (
-    <marker id={id} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-      <path d="M0 0 L7 3.5 L0 7 z" fill={color} />
-    </marker>
-  );
-}
-
-function Box({
-  x, y, w = 110, h = 46, title, note, accent = false, dashed = false,
-}: {
-  x: number; y: number; w?: number; h?: number;
-  title: string; note?: string; accent?: boolean; dashed?: boolean;
-}) {
-  return (
-    <g>
-      <rect
-        x={x} y={y} width={w} height={h} rx="8"
-        fill={accent ? "color-mix(in srgb, var(--accent) 14%, transparent)" : "var(--card)"}
-        stroke={accent ? "var(--accent)" : "var(--hairline-strong)"}
-        strokeDasharray={dashed ? "4 3" : undefined}
-      />
-      <text x={x + w / 2} y={note ? y + h / 2 - 2 : y + h / 2 + 4}
-            textAnchor="middle" style={strong}>
-        {title}
-      </text>
-      {note && (
-        <text x={x + w / 2} y={y + h / 2 + 14} textAnchor="middle" style={faint}>
-          {note}
-        </text>
-      )}
-    </g>
-  );
-}
-
-function Bar({ x, y, value, name, win = false, width = 150 }: {
-  x: number; y: number; value: number; name: string; win?: boolean; width?: number;
-}) {
-  return (
-    <g>
-      <text x={x} y={y + 9} style={win ? strong : label}>{name}</text>
-      <rect x={x + 70} y={y} width={width} height={10} rx="5" fill="var(--overlay)" stroke="var(--hairline)" />
-      <rect x={x + 70} y={y} width={Math.max(2, width * value)} height={10} rx="5"
-            fill={win ? "var(--accent)" : "var(--fg-faint)"} />
-      <text x={x + 70 + width + 8} y={y + 9} style={mono}>{value.toFixed(2)}</text>
-    </g>
-  );
-}
+import {
+  ArenaGraph, CardAlongside, CardQuestions, GameMapping, GraphDefinition, LatencyScale, LoopRoutes, ModelKeys, ModelLimits,
+  ReadCardNode, RequestPath, ServingDataflow, ThreeModels, ThreeTools, TickNode, TwoSdks, WorkflowModeStructure,
+} from "./decisions";
+import { Arrow, Bar, Box, faint, label, mono, strong } from "./parts";
 
 /* ── step 3 ─────────────────────────────────────────────────────────────── */
 
@@ -139,7 +89,7 @@ function SystemComponents() {
   const parts = [
     { x: 78, title: "Deterministic code", note: "rules and thresholds", cost: "instant · free", accent: false },
     { x: 238, title: "Discriminative model", note: "bounded decisions", cost: "70–500 ms · fractions of a cent", accent: true },
-    { x: 398, title: "Language model", note: "perception · generation", cost: "seconds · per token", accent: false },
+    { x: 398, title: "Language model", note: "open-ended text", cost: "seconds · per token", accent: false },
   ];
   return (
     <svg viewBox="0 0 620 190" role="img"
@@ -163,43 +113,6 @@ function SystemComponents() {
 }
 
 /* ── step 1 ─────────────────────────────────────────────────────────────── */
-
-function ServingDataflow() {
-  return (
-    <svg viewBox="0 0 640 262" role="img"
-         aria-label="The workshop code calls the TypeSafe SDK. Jev is reached over HTTPS. DiffusionGemma is reached through a gcloud IAP tunnel and Identity-Aware Proxy to a Compute Engine VM running djev-run and vLLM on a GPU.">
-      <defs><Arrow id="sd-a" color="var(--hairline-strong)" /><Arrow id="sd-b" color="var(--accent)" /></defs>
-
-      <rect x={10} y={14} width={186} height={236} rx="12" fill="none" stroke="var(--hairline-strong)" strokeDasharray="4 3" />
-      <text x={24} y={36} style={strong}>Your machine</text>
-      <text x={24} y={50} style={faint}>laptop or Cloud Shell</text>
-      <Box x={24} y={62} w={158} h={44} title="Arena app · workflow" note="builds the request" />
-      <line x1="103" y1="106" x2="103" y2="122" stroke="var(--hairline-strong)" markerEnd="url(#sd-a)" />
-      <Box x={24} y={124} w={158} h={44} title="TypeSafe SDK" note="POST /v1/systemone" accent />
-      <line x1="103" y1="168" x2="103" y2="186" stroke="var(--accent)" markerEnd="url(#sd-b)" />
-      <Box x={24} y={188} w={158} h={44} title="gcloud IAP tunnel" note="localhost:8096" />
-
-      {/* Jev */}
-      <line x1="182" y1="140" x2="248" y2="62" stroke="var(--hairline-strong)" markerEnd="url(#sd-a)" />
-      <text x={226} y={112} style={faint}>HTTPS</text>
-      <Box x={250} y={30} w={170} h={50} title="Jev" note="api.typesafe.ai · API key" dashed />
-      <text x={430} y={52} style={faint}>hosted by TypeSafe AI</text>
-
-      {/* DiffusionGemma */}
-      <line x1="182" y1="210" x2="222" y2="210" stroke="var(--accent)" markerEnd="url(#sd-b)" />
-      <Box x={224} y={186} w={140} h={48} title="Identity-Aware Proxy" note="checks your identity" />
-      <line x1="364" y1="210" x2="386" y2="210" stroke="var(--accent)" markerEnd="url(#sd-b)" />
-      <rect x={388} y={106} width={242} height={144} rx="12" fill="none" stroke="var(--hairline-strong)" strokeDasharray="4 3" />
-      <text x={400} y={126} style={strong}>Compute Engine VM</text>
-      <text x={400} y={140} style={faint}>your project · port 8080 via IAP only</text>
-      <Box x={398} y={152} w={112} h={40} title="djev-run" note=":8080 · Jev API" />
-      <line x1="454" y1="192" x2="454" y2="200" stroke="var(--hairline-strong)" />
-      <Box x={398} y={200} w={112} h={40} title="vLLM" note="DiffusionGemma" accent />
-      <line x1="510" y1="220" x2="522" y2="220" stroke="var(--hairline-strong)" markerEnd="url(#sd-a)" />
-      <Box x={524} y={186} w={94} h={54} title="GPU" note="24 GB memory" />
-    </svg>
-  );
-}
 
 function ServingStack() {
   const layers = [
@@ -265,7 +178,7 @@ function ModelModeStructure() {
   );
   return (
     <svg viewBox="0 0 680 290" role="img"
-         aria-label="The arena app. The game from step 3: main.py, the server that loads mode plugins; engine.py, the rules and damage; sigil.py, the spell cards; and static/app.js, the page. Step 5 adds the model mode: mode_model.py, which asks the model every tick; reflex.py, the questions and choose(); and static/modes/model.js, the answer cards on the page. mode_model.py calls the model through the TypeSafe SDK, on Jev or DiffusionGemma.">
+         aria-label="The arena app. The game from step 3: main.py, the server that loads mode plugins; engine.py, the rules and damage; sigil.py, the spell cards; and static/app.js, the page. Step 5 adds the model mode: mode_model.py, which asks the model every tick; reflex.py, the questions and choose(); and static/modes/model.js, the answer cards on the page. mode_model.py calls decisions.ask(), which reaches Jev or DiffusionGemma through the TypeSafe SDK, or Gemini Decisions through the Google Gen AI SDK.">
       <defs><Arrow id="mm-a" color="var(--hairline-strong)" /><Arrow id="mm-b" color="var(--accent)" /></defs>
 
       {col(10, 196, 268, "The game", "step 3, unchanged")}
@@ -280,8 +193,10 @@ function ModelModeStructure() {
       <Box x={264} y={220} w={172} h={44} title="static/modes/model.js" note="the answer cards" accent />
 
       {col(494, 176, 268, "The model", "outside the app")}
-      <Box x={506} y={58} w={152} h={44} title="TypeSafe SDK" note="POST /v1/systemone" />
-      <Box x={506} y={130} w={152} h={52} title="Jev" note="or DiffusionGemma" dashed />
+      <Box x={506} y={58} w={152} h={44} title="decisions.ask()" note="picks the SDK" />
+      <Box x={506} y={130} w={152} h={44} title="Jev · DiffusionGemma" note="TypeSafe SDK" dashed />
+      <Box x={506} y={184} w={152} h={44} title="Gemini Decisions" note="Google Gen AI SDK" dashed />
+      <path d="M658 80 C 674 80, 674 206, 660 206" fill="none" stroke="var(--accent)" markerEnd="url(#mm-b)" />
 
       {arrow(194, 80, 262, 80, "loads")}
       {arrow(262, 134, 196, 134, "reads rules")}
@@ -289,150 +204,6 @@ function ModelModeStructure() {
       {arrow(436, 80, 504, 80, "calls", true)}
       <line x1="582" y1="102" x2="582" y2="128" stroke="var(--accent)" markerEnd="url(#mm-b)" />
       <line x1="350" y1="102" x2="350" y2="110" stroke="var(--hairline-strong)" markerEnd="url(#mm-a)" />
-    </svg>
-  );
-}
-
-const FULL_REQUEST = `POST https://api.typesafe.ai/v1/systemone
-Authorization: Bearer $TYPESAFE_API_KEY
-Content-Type: application/json
-
-${JSON.stringify({
-  state: {
-    opponent: "a nine-foot ogre with a spiked club, thick hide, and a short temper",
-    telegraph: "The ogre staggers, off balance, its guard wide open.",
-  },
-  model: "jev-latest",
-  questions: {
-    response: {
-      type: "choice",
-      instructions: "The opponent has just done this. What is the right response?",
-      criteria: {
-        block_high: "Raise the shield against a high swing.",
-        block_low: "Drop the shield against a swing at the legs.",
-        dodge: "Step aside from a charge or a thrown object.",
-        strike: "Attack now, while the opponent is exposed.",
-        wait: "Hold and watch, against a feint.",
-      },
-    },
-    exposed: { type: "noul", instructions: "Is the opponent exposed to a counter-attack right now?" },
-  },
-}, null, 2)}`;
-
-const FULL_RESPONSE = JSON.stringify({
-  model: "jev-1.13.0",
-  answers: {
-    response: {
-      type: "choice",
-      choice: "strike",
-      confidence: 0.96,
-      probabilities: { block_high: 0.01, block_low: 0.01, dodge: 0.01, strike: 0.97, wait: 0.0 },
-    },
-    exposed: { type: "noul", noul: 0.97 },
-  },
-  usage: { input_tokens: 190, output_tokens: 0 },
-}, null, 2);
-
-function RequestPath() {
-  const [open, setOpen] = useState<"" | "request" | "response">("");
-  const card = (x: number, y: number, h: number, title: string, lines: string[]) => (
-    <g>
-      <rect x={x} y={y} width={236} height={h} rx="8" fill="var(--overlay)" stroke="var(--hairline)" />
-      <text x={x + 12} y={y + 18} style={{ ...faint, fill: "var(--accent)" }}>{title}</text>
-      {lines.map((line, i) => (
-        <text key={line} x={x + 12} y={y + 36 + i * 15} style={mono}>{line}</text>
-      ))}
-    </g>
-  );
-  return (
-    <svg viewBox="0 0 640 270" role="img"
-         aria-label="Your code sends a request through the TypeSafe SDK: POST /v1/systemone with the state, a choice question and a noul question. It goes either to Jev at api.typesafe.ai with an API key, or to djev-run on port 8080, which exposes the same Jev API on top of vLLM running DiffusionGemma. The response names the model, gives the choice with its confidence and the noul as a probability, and reports the tokens.">
-      <defs><Arrow id="rp-a" color="var(--accent)" /></defs>
-
-      <Box x={14} y={106} w={150} h={58} title="Your code" note="TypeSafe SDK" accent />
-
-      <g role="button" tabIndex={0} aria-label="Show the full HTTP request"
-         onClick={() => setOpen("request")}
-         onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setOpen("request"); }}
-         style={{ cursor: "pointer" }}>
-        {card(176, 10, 100, "request", [
-          "POST /v1/systemone",
-          "state: opponent, telegraph",
-          "response: choice of 5",
-          "exposed: noul",
-        ])}
-        <text x={400} y={28} textAnchor="end" style={{ ...faint, fill: "var(--accent)" }}>show in full ⤢</text>
-      </g>
-      <line x1="164" y1="122" x2="420" y2="122" stroke="var(--accent)" strokeWidth="1.5" markerEnd="url(#rp-a)" />
-      <line x1="422" y1="148" x2="168" y2="148" stroke="var(--accent)" strokeWidth="1.5" markerEnd="url(#rp-a)" />
-      <g role="button" tabIndex={0} aria-label="Show the full HTTP response"
-         onClick={() => setOpen("response")}
-         onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setOpen("response"); }}
-         style={{ cursor: "pointer" }}>
-        {card(176, 160, 100, "response", [
-          "model: jev-1.13.0",
-          "response: strike · conf 0.96",
-          "exposed: 0.97",
-          "usage: 190 input · 0 output",
-        ])}
-        <text x={400} y={178} textAnchor="end" style={{ ...faint, fill: "var(--accent)" }}>show in full ⤢</text>
-      </g>
-
-      {/* either backend, same API */}
-      <line x1="428" y1="58" x2="428" y2="178" stroke="var(--hairline-strong)" />
-      <line x1="428" y1="58" x2="444" y2="58" stroke="var(--hairline-strong)" markerEnd="url(#rp-a)" />
-      <line x1="428" y1="178" x2="454" y2="178" stroke="var(--hairline-strong)" markerEnd="url(#rp-a)" />
-
-      <Box x={446} y={32} w={180} h={52} title="Jev" note="api.typesafe.ai · API key" dashed />
-      <text x={536} y={112} textAnchor="middle" style={faint}>or, the same API</text>
-
-      <rect x={446} y={124} width={180} height={128} rx="10" fill="none" stroke="var(--hairline-strong)" strokeDasharray="4 3" />
-      <text x={458} y={142} style={faint}>DiffusionGemma on a VM</text>
-      <Box x={456} y={156} w={160} h={42} title="djev-run" note=":8080 · Jev API" accent />
-      <Box x={456} y={204} w={160} h={40} title="vLLM" note="DiffusionGemma" />
-      {open === "request" && <CodePopup title="HTTP request" code={FULL_REQUEST} onClose={() => setOpen("")} />}
-      {open === "response" && (
-        <CodePopup title="HTTP response" code={FULL_RESPONSE} format="json" onClose={() => setOpen("")} />
-      )}
-    </svg>
-  );
-}
-
-function ParallelBranch() {
-  const ticks = Array.from({ length: 15 }, (_, i) => i);
-  const READY = 10;                     // the tick that first sees the spell
-  const tx = (i: number) => 20 + i * 38;
-  return (
-    <svg viewBox="0 0 620 150" role="img"
-         aria-label="Parallel branch with shared state: the tick loop keeps running every half second, and each tick reads the spell slot. Meanwhile the spell branch runs read_rune, spellwright on Gemini for a few seconds, and spell_ready, which writes the spell to state. The first tick after that casts it.">
-      <defs><Arrow id="lr-a" color="var(--hairline-strong)" /><Arrow id="lr-b" color="var(--accent)" /></defs>
-
-      <text x={20} y={20} style={{ ...strong, fill: "var(--accent)" }}>Parallel branch with shared state</text>
-      <text x={20} y={42} style={faint}>tick loop · every 0.5 s</text>
-      {ticks.map((i) => {
-        const cast = i === READY;
-        return (
-          <g key={i}>
-            <rect x={tx(i)} y={50} width={30} height={22} rx="5"
-                  fill={cast ? "var(--accent)" : "var(--card)"}
-                  stroke={cast ? "var(--accent)" : "var(--hairline-strong)"} />
-            <text x={tx(i) + 15} y={65} textAnchor="middle"
-                  style={{ ...mono, fontSize: 9, fill: cast ? "var(--bg, #fff)" : "var(--fg-faint)" }}>
-              {cast ? "cast" : "tick"}
-            </text>
-          </g>
-        );
-      })}
-      <text x={20} y={88} style={faint}>each tick reads state["spell"]: not ready</text>
-
-      <text x={20} y={110} style={faint}>spell branch</text>
-      <Box x={92} y={98} w={78} h={32} title="read_rune" />
-      <line x1="170" y1="114" x2="184" y2="114" stroke="var(--hairline-strong)" markerEnd="url(#lr-a)" />
-      <Box x={186} y={98} w={176} h={40} title="spellwright" note="Gemini · a few seconds" />
-      <line x1="362" y1="114" x2="376" y2="114" stroke="var(--hairline-strong)" markerEnd="url(#lr-a)" />
-      <Box x={378} y={98} w={96} h={32} title="spell_ready" accent />
-      <line x1={tx(READY) + 15} y1="98" x2={tx(READY) + 15} y2="76" stroke="var(--accent)" markerEnd="url(#lr-b)" />
-      <text x={484} y={118} style={{ ...faint, fill: "var(--accent)" }}>writes state["spell"]</text>
     </svg>
   );
 }
@@ -1145,398 +916,12 @@ function CostShape() {
 
 /* ── step 5 ─────────────────────────────────────────────────────────────── */
 
-function ArenaGraph() {
-  const fast = "var(--accent)";
-  const line = "var(--hairline-strong)";
-  return (
-    <svg viewBox="0 0 600 250" role="img"
-         aria-label="The bell, enter, splits the workflow in two. The slow branch calls Gemini to read the spell card and write the spell into shared state, spell ready. The fast branch calls the Discriminative model every tick and reads that shared state. The branches never call each other; they only share state.">
-      <defs><Arrow id="ag-a" color={line} /><Arrow id="ag-b" color={fast} /></defs>
-
-      <Box x={10} y={103} w={84} h={44} title="enter" note="the bell" />
-      <line x1="94" y1="116" x2="168" y2="48" stroke={line} markerEnd="url(#ag-a)" />
-      <line x1="94" y1="134" x2="168" y2="202" stroke={fast} markerEnd="url(#ag-b)" />
-      <text x={106} y={128} style={faint}>split</text>
-
-      {/* slow branch */}
-      <text x={170} y={14} style={faint}>slow branch · seconds</text>
-      <Box x={170} y={22} w={280} h={52} title="Gemini" note="reads the spell card and sings a spell" dashed />
-
-      {/* shared state */}
-      <line x1="310" y1="74" x2="310" y2="98" stroke={line} strokeDasharray="3 3" markerEnd="url(#ag-a)" />
-      <text x={318} y={90} style={faint}>writes</text>
-      <rect x={220} y={100} width={180} height={50} rx="8" fill="var(--overlay)" stroke={line} strokeDasharray="5 3" />
-      <text x={310} y={121} textAnchor="middle" style={strong}>shared state</text>
-      <text x={310} y={138} textAnchor="middle" style={mono}>spell ready?</text>
-      <line x1="310" y1="150" x2="310" y2="174" stroke={fast} strokeDasharray="3 3" markerEnd="url(#ag-b)" />
-      <text x={318} y={166} style={{ ...faint, fill: fast }}>reads, every tick</text>
-
-      {/* fast branch */}
-      <text x={170} y={244} style={{ ...faint, fill: fast }}>fast branch · about 100 ms a tick</text>
-      <Box x={170} y={176} w={280} h={52} title="Discriminative model" note="one decision every tick" accent />
-      <path d="M450 190 C 500 190, 500 214, 452 214" fill="none" stroke={fast} markerEnd="url(#ag-b)" />
-      <text x={498} y={206} style={{ ...faint, fill: fast }}>loop</text>
-    </svg>
-  );
-}
-
-/* Step 6c: the arena app with the workflow mode added, and the ADK workflow
-   it starts in its own process. Step 5's files are muted; step 6's are lit. */
-function WorkflowModeStructure() {
-  const line = "var(--hairline-strong)";
-  const fast = "var(--accent)";
-  const group = (x: number, y: number, w: number, h: number, title: string, note: string, lit = false, muted = false) => (
-    <g opacity={muted ? 0.55 : 1}>
-      <rect x={x} y={y} width={w} height={h} rx="12"
-            fill={lit ? "color-mix(in srgb, var(--accent) 6%, transparent)" : "none"}
-            stroke={lit ? fast : line} strokeDasharray="4 3" />
-      <text x={x + 12} y={y + 20} style={strong}>{title}</text>
-      <text x={x + 12} y={y + 34} style={faint}>{note}</text>
-    </g>
-  );
-  const arrow = (d: string, word: string, wx: number, wy: number, color = line, id = "wm-a", dashed = false) => (
-    <g>
-      <path d={d} fill="none" stroke={color} strokeDasharray={dashed ? "4 3" : undefined} markerEnd={`url(#${id})`} />
-      <text x={wx} y={wy} textAnchor="middle" style={faint}>{word}</text>
-    </g>
-  );
-  return (
-    <svg viewBox="0 0 760 340" role="img"
-         aria-label="The arena app with the workflow mode. The game from step 3: main.py, engine.py, sigil.py and static/app.js. The model mode from step 5: mode_model.py, reflex.py and static/modes/model.js. Step 6 adds mode_workflow.py, which starts the ADK workflow in agents/arena/agent.py as its own process, and static/modes/workflow.js, which draws the workflow fight. The workflow plays over HTTP, posting moves and spells back to the app, uses reflex.py's questions and choose(), and calls the Discriminative model through the TypeSafe SDK and Gemini on Vertex AI.">
-      <defs><Arrow id="wm-a" color={line} /><Arrow id="wm-b" color={fast} /></defs>
-
-      {group(10, 10, 190, 320, "The game", "step 3")}
-      <Box x={22} y={58} w={166} h={42} title="main.py" note="server · loads mode plugins" />
-      <Box x={22} y={110} w={166} h={42} title="engine.py" note="rules, moves, damage" />
-      <Box x={22} y={162} w={166} h={42} title="sigil.py" note="the spell cards" />
-      <Box x={22} y={268} w={166} h={42} title="static/app.js" note="the page · loads modes/*.js" />
-
-      {group(250, 10, 196, 150, "The model mode", "step 5", false, true)}
-      <g opacity={0.55}>
-        <Box x={262} y={50} w={172} h={30} title="mode_model.py" />
-        <Box x={262} y={86} w={172} h={30} title="reflex.py" />
-        <Box x={262} y={122} w={172} h={30} title="static/modes/model.js" />
-      </g>
-
-      {group(250, 172, 196, 158, "The workflow mode", "added in step 6", true)}
-      <Box x={262} y={212} w={172} h={44} title="mode_workflow.py" note="starts the workflow, judges it" accent />
-      <Box x={262} y={266} w={172} h={44} title="static/modes/workflow.js" note="draws the workflow fight" accent />
-
-      {group(516, 10, 234, 186, "The ADK workflow", "its own process", true)}
-      <rect x={528} y={50} width={210} height={134} rx="8"
-            fill="color-mix(in srgb, var(--accent) 14%, transparent)" stroke={fast} />
-      <text x={633} y={72} textAnchor="middle" style={strong}>agents/arena/agent.py</text>
-      {["fast: tick, check_spell", "slow: read_rune, spellwright,", "spell_ready", "end: summarise, bard"].map((t, i) => (
-        <text key={t} x={633} y={96 + i * 18} textAnchor="middle" style={mono}>{t}</text>
-      ))}
-
-      {group(516, 208, 234, 122, "The models", "outside the app")}
-      <Box x={528} y={250} w={210} h={40} title="Discriminative model" note="TypeSafe SDK" />
-      <Box x={528} y={296} w={210} h={28} title="Gemini · Vertex AI" />
-
-      {arrow("M188 79 C 225 79, 225 234, 260 234", "loads", 225, 140)}
-      {arrow("M188 289 L 260 289", "loads", 225, 283)}
-      {arrow("M434 226 C 481 226, 481 120, 526 120", "starts", 481, 168, fast, "wm-b")}
-      {arrow("M528 160 C 481 160, 481 250, 436 250", "", 0, 0, line, "wm-a", true)}
-      <text x={481} y={272} textAnchor="middle" style={faint}>moves, spells</text>
-      <text x={481} y={285} textAnchor="middle" style={faint}>over HTTP</text>
-      {arrow("M528 68 C 481 68, 481 101, 436 101", "", 0, 0, line, "wm-a", true)}
-      <text x={481} y={52} textAnchor="middle" style={faint}>questions,</text>
-      <text x={481} y={64} textAnchor="middle" style={faint}>choose()</text>
-      {arrow("M633 184 L 633 248", "", 0, 0, fast, "wm-b")}
-      {arrow("M738 150 C 756 150, 756 310, 740 310", "", 0, 0, fast, "wm-b")}
-    </svg>
-  );
-}
-
-/* One event loop, one thread: a branch runs until it reaches an await, then
-   the loop runs the other one. Solid is running, dashed is waiting. */
-function EventLoop() {
-  const fast = "var(--accent)";
-  const run = (x1: number, x2: number, y: number, name: string, color: string) => (
-    <g key={`${name}-${x1}`}>
-      <rect x={x1} y={y - 13} width={x2 - x1} height={26} rx="5"
-            fill={`color-mix(in srgb, ${color} 18%, transparent)`} stroke={color} />
-      <text x={(x1 + x2) / 2} y={y + 4} textAnchor="middle" style={{ ...mono, fontSize: 10, fill: "var(--fg)" }}>{name}</text>
-    </g>
-  );
-  const wait = (x1: number, x2: number, y: number, word: string, color: string) => (
-    <g key={`w-${x1}-${y}`}>
-      <line x1={x1 + 2} y1={y} x2={x2 - 4} y2={y} stroke={color} strokeDasharray="4 4" markerEnd="url(#el-a)" />
-      {word && <text x={(x1 + x2) / 2} y={y - 8} textAnchor="middle" style={faint}>{word}</text>}
-    </g>
-  );
-  const slow = "var(--fg-muted)";
-  return (
-    <svg viewBox="0 0 680 186" role="img"
-         aria-label="One event loop in one thread. The fast branch runs tick, waits at an await for the model, runs tick and check_spell, and repeats. While it waits, the loop runs the slow branch: read_rune, then a long await for Gemini of several seconds, then spell_ready. Only one runs at a time, and each runs while the other is waiting.">
-      <defs><Arrow id="el-a" color="var(--hairline-strong)" /></defs>
-      <text x={10} y={20} style={strong}>One event loop, one thread</text>
-      <text x={198} y={20} style={faint}>it switches branch at every await</text>
-
-      <text x={10} y={130} style={{ ...label, fill: fast }}>fast branch</text>
-      {run(110, 160, 126, "tick", fast)}
-      {wait(160, 250, 126, "await model", fast)}
-      {run(250, 290, 126, "tick", fast)}
-      {run(290, 368, 126, "check_spell", fast)}
-      {run(368, 408, 126, "tick", fast)}
-      {wait(408, 478, 126, "await model", fast)}
-      {run(478, 518, 126, "tick", fast)}
-      {run(518, 596, 126, "check_spell", fast)}
-      {wait(596, 664, 126, "…", fast)}
-
-      <text x={10} y={70} style={label}>slow branch</text>
-      {run(160, 244, 66, "read_rune", slow)}
-      {wait(244, 590, 66, "await Gemini · seconds", slow)}
-      {run(590, 670, 66, "spell_ready", slow)}
-
-      <text x={10} y={174} style={faint}>Solid: the branch is running. Dashed: it waits at an await, and the loop runs the other branch.</text>
-    </svg>
-  );
-}
-
-/* One pass through tick(): read the slot, get the ogre's move, ask the model,
-   apply the thresholds, let the arena resolve it, then route. */
-function TickNode() {
-  const fast = "var(--accent)";
-  const line = "var(--hairline-strong)";
-  const steps: [string, string, boolean][] = [
-    ["state[\"spell\"]", "is a spell ready?", false],
-    ["arena.telegraph", "the ogre's move", false],
-    ["system_one", "the model answers", true],
-    ["choose()", "thresholds → action", false],
-    ["arena.respond", "resolves the blow", false],
-  ];
-  const routeLabel = (x: number, y: number, text: string, anchor: "start" | "middle" | "end" = "middle") => (
-    <text x={x} y={y} textAnchor={anchor} style={{ ...mono, fontSize: 10.5, fill: fast }}>{text}</text>
-  );
-  return (
-    <svg viewBox="0 0 680 262" role="img"
-         aria-label="One pass through tick: read whether a spell is ready, get the ogre's move from the arena, ask the Discriminative model, apply the thresholds in choose(), and let the arena resolve the blow. Then a decision with three outcomes: route next to check_spell while the match goes on; route recast and next, to read_rune and check_spell, when a spell was just cast; route done to summarise when someone reaches 0 HP or tick 60.">
-      <defs><Arrow id="tn-a" color={line} /><Arrow id="tn-b" color={fast} /></defs>
-      <text x={10} y={18} style={faint}>one tick · system_one is awaited, so the slow branch keeps running</text>
-      {steps.map(([title, note, accent], i) => (
-        <g key={title}>
-          <Box x={10 + i * 134} y={30} w={118} h={50} title={title} note={note} accent={accent} />
-          {i < steps.length - 1 && (
-            <line x1={128 + i * 134} y1="55" x2={142 + i * 134} y2="55" stroke={line} markerEnd="url(#tn-a)" />
-          )}
-        </g>
-      ))}
-
-      {/* the decision */}
-      <path d="M605 80 V 110 H 372" fill="none" stroke={line} markerEnd="url(#tn-a)" />
-      <polygon points="308,98 372,98 340,142" fill="var(--card)" stroke={fast} strokeWidth="1.5" />
-      <text x={340} y={116} textAnchor="middle" style={{ ...strong, fontSize: 13 }}>?</text>
-      <text x={300} y={112} textAnchor="end" style={faint}>match over? spell just cast?</text>
-
-      {/* the three outcomes, each with the route tick returns */}
-      <line x1="334" y1="142" x2="126" y2="198" stroke={fast} markerEnd="url(#tn-b)" />
-      <line x1="340" y1="142" x2="340" y2="198" stroke={fast} markerEnd="url(#tn-b)" />
-      <line x1="346" y1="142" x2="554" y2="198" stroke={line} markerEnd="url(#tn-a)" />
-      {routeLabel(214, 164, 'route=["next"]', "end")}
-      {routeLabel(333, 191, 'route=["recast", "next"]', "end")}
-      {routeLabel(478, 160, 'route=["done"]', "start")}
-
-      <Box x={22} y={200} w={200} h={50} title="check_spell" note="the match goes on" accent />
-      <Box x={240} y={200} w={200} h={50} title="read_rune + check_spell" note="a spell was cast; keep fighting too" />
-      <Box x={458} y={200} w={200} h={50} title="summarise" note="0 HP, or tick 60" />
-    </svg>
-  );
-}
-
-/* check_spell(): a look at the slot that never waits, then back to tick. */
-function CheckSpellNode() {
-  const fast = "var(--accent)";
-  const line = "var(--hairline-strong)";
-  return (
-    <svg viewBox="0 0 680 178" role="img"
-         aria-label="check_spell reads the spell slot in state. If a spell is there, it reports ready with the spell's name. If the slot is still empty, it reports not ready and how long Gemini has been working. Either way it routes again, back to tick, without waiting.">
-      <defs><Arrow id="cs-a" color={line} /><Arrow id="cs-b" color={fast} /></defs>
-      <Box x={10} y={62} w={130} h={50} title="check_spell" note={'reads state["spell"]'} accent />
-      <line x1="140" y1="78" x2="196" y2="44" stroke={line} markerEnd="url(#cs-a)" />
-      <line x1="140" y1="96" x2="196" y2="130" stroke={line} markerEnd="url(#cs-a)" />
-      <text x={160} y={52} style={faint}>filled</text>
-      <text x={160} y={132} style={faint}>empty</text>
-      <Box x={198} y={18} w={220} h={50} title="report: ready" note="the spell's name" />
-      <Box x={198} y={106} w={220} h={50} title="report: not ready" note="seconds Gemini has been working" />
-      <line x1="418" y1="43" x2="470" y2="78" stroke={fast} markerEnd="url(#cs-b)" />
-      <line x1="418" y1="131" x2="470" y2="96" stroke={fast} markerEnd="url(#cs-b)" />
-      <Box x={472} y={62} w={92} h={50} title="again" note="always" accent />
-      <line x1="564" y1="87" x2="586" y2="87" stroke={fast} markerEnd="url(#cs-b)" />
-      <Box x={588} y={62} w={82} h={50} title="tick" note="next exchange" accent />
-      <text x={10} y={170} style={faint}>It never waits for Gemini. The page shows the report; tick casts once the slot is filled.</text>
-    </svg>
-  );
-}
-
-/* read_rune(): the spell card, exactly as the screen shows it, becomes
-   Gemini's user turn. */
-function ReadRuneNode() {
-  const line = "var(--hairline-strong)";
-  return (
-    <svg viewBox="0 0 680 128" role="img"
-         aria-label="read_rune takes the spell card on the arena's screen, grabs it as a PNG with rune_png, and wraps it with a line of text in a Content, which becomes the spellwright's user turn.">
-      <defs><Arrow id="rr-a" color={line} /></defs>
-      <rect x={14} y={22} width={120} height={70} rx="8" fill="var(--card)" stroke="#a86ef0" strokeWidth="3" />
-      <circle cx={44} cy={57} r={9} fill="var(--fg-muted)" />
-      <rect x={62} y={54} width={22} height={6} rx="2" fill="var(--fg-muted)" />
-      <polygon points="113,46 124,57 113,68 102,57" fill="var(--fg-muted)" />
-      <text x={74} y={110} textAnchor="middle" style={faint}>the spell card on screen</text>
-      <line x1="134" y1="57" x2="170" y2="57" stroke={line} markerEnd="url(#rr-a)" />
-      <Box x={172} y={32} w={130} h={50} title="rune_png()" note="exactly what is shown" />
-      <line x1="302" y1="57" x2="338" y2="57" stroke={line} markerEnd="url(#rr-a)" />
-      <rect x={340} y={22} width={176} height={70} rx="8" fill="color-mix(in srgb, var(--accent) 14%, transparent)" stroke="var(--accent)" />
-      <text x={352} y={42} style={strong}>Content (role "user")</text>
-      <text x={352} y={60} style={mono}>text: "Sing the spell…"</text>
-      <text x={352} y={76} style={mono}>image/png: the card</text>
-      <line x1="516" y1="57" x2="552" y2="57" stroke={line} markerEnd="url(#rr-a)" />
-      <Box x={554} y={32} w={112} h={50} title="spellwright" note="its user turn" dashed />
-      <text x={428} y={110} textAnchor="middle" style={faint}>also notes in state when reading began</text>
-    </svg>
-  );
-}
-
-/* spellwright: Gemini reads the image and answers in a fixed shape. */
-function SpellwrightNode() {
-  const line = "var(--hairline-strong)";
-  return (
-    <svg viewBox="0 0 680 150" role="img"
-         aria-label="The spellwright is an LlmAgent on gemini-flash-latest. Its instruction says the colour is the element and the three shapes are read left to right. Its output_schema is Sung: an element, three glyphs, and an incantation.">
-      <defs><Arrow id="sw-a" color={line} /></defs>
-      <Box x={10} y={50} w={110} h={50} title="the card" note="image/png" />
-      <line x1="120" y1="75" x2="156" y2="75" stroke={line} markerEnd="url(#sw-a)" />
-      <rect x={158} y={14} width={240} height={122} rx="10" fill="var(--card)" stroke={line} strokeDasharray="4 3" />
-      <text x={172} y={36} style={strong}>spellwright · LlmAgent</text>
-      <text x={172} y={52} style={faint}>gemini-flash-latest</text>
-      <text x={172} y={76} style={label}>colour of the border → element</text>
-      <text x={172} y={94} style={label}>three shapes, read left to right</text>
-      <text x={172} y={112} style={label}>a short incantation</text>
-      <line x1="398" y1="75" x2="434" y2="75" stroke={line} markerEnd="url(#sw-a)" />
-      <rect x={436} y={14} width={234} height={122} rx="10"
-            fill="color-mix(in srgb, var(--accent) 14%, transparent)" stroke="var(--accent)" />
-      <text x={450} y={36} style={strong}>Sung</text>
-      <text x={494} y={36} style={faint}>output_schema</text>
-      <text x={450} y={62} style={mono}>element: "storm"</text>
-      <text x={450} y={80} style={mono}>glyphs: circle, bar, diamond</text>
-      <text x={450} y={98} style={mono}>incantation: "Unleash the</text>
-      <text x={450} y={114} style={mono}>  tempest!"</text>
-    </svg>
-  );
-}
-
-/* spell_ready(): the arena, not Gemini, judges the spell; then store or retry. */
-function SpellReadyNode() {
-  const line = "var(--hairline-strong)";
-  return (
-    <svg viewBox="0 0 680 186" role="img"
-         aria-label="spell_ready hands the sung spell to the arena, which judges it against the spell card's hidden answer. If it does damage, the spell is stored in state and the branch routes stored to rest. A misread does no damage, burns the spell card, and routes retry to read_rune for the new card.">
-      <defs><Arrow id="sr-a" color={line} /></defs>
-      <Box x={10} y={64} w={96} h={50} title="Sung" note="from Gemini" />
-      <line x1="106" y1="89" x2="140" y2="89" stroke={line} markerEnd="url(#sr-a)" />
-      <Box x={142} y={64} w={190} h={50} title="arena.sung()" note="judged against the hidden answer" />
-      <line x1="332" y1="80" x2="380" y2="46" stroke="var(--accent)" markerEnd="url(#sr-a)" />
-      <line x1="332" y1="98" x2="380" y2="132" stroke={line} markerEnd="url(#sr-a)" />
-      <text x={334} y={56} style={faint}>damage</text>
-      <text x={334} y={130} style={faint}>misread</text>
-      <Box x={382} y={16} w={172} h={50} title={'state["spell"] = spell'} note="the slot is filled" accent />
-      <line x1="554" y1="41" x2="584" y2="41" stroke={line} markerEnd="url(#sr-a)" />
-      <Box x={586} y={16} w={84} h={50} title="stored" note="→ rest" />
-      <Box x={382} y={112} w={172} h={50} title="the card is burned" note="no damage, a new card" />
-      <line x1="554" y1="137" x2="584" y2="137" stroke={line} markerEnd="url(#sr-a)" />
-      <Box x={586} y={112} w={84} h={50} title="retry" note="→ read_rune" />
-      <text x={10} y={180} style={faint}>perfect reading 45 damage · two shapes right 25 · misread 0</text>
-    </svg>
-  );
-}
-
-/* The arena workflow exactly as `edges=[...]` defines it: every node, every
-   routed edge with its route name. */
-function GraphDefinition() {
-  const fast = "var(--accent)";
-  const line = "var(--hairline-strong)";
-  const route = (x: number, y: number, word: string, color = "var(--fg-faint)") => (
-    <text x={x} y={y} textAnchor="middle" style={{ ...mono, fontSize: 10, fill: color }}>{word}</text>
-  );
-  return (
-    <svg viewBox="0 0 680 340" role="img"
-         aria-label="The arena workflow graph. START goes to enter, which fans out to read_rune and tick. Slow branch: read_rune, spellwright, spell_ready; spell_ready routes retry back to read_rune, or stored to rest. Fast loop: tick routes next to check_spell, which routes again back to tick; tick routes recast to read_rune, and done to summarise, then bard, then finish.">
-      <defs><Arrow id="gd-a" color={line} /><Arrow id="gd-b" color={fast} /></defs>
-
-      <Box x={8} y={152} w={60} h={36} title="START" />
-      <line x1="68" y1="170" x2="90" y2="170" stroke={line} markerEnd="url(#gd-a)" />
-      <Box x={92} y={148} w={76} h={44} title="enter" note="the bell" />
-
-      {/* fan-out */}
-      <line x1="168" y1="160" x2="206" y2="72" stroke={line} markerEnd="url(#gd-a)" />
-      <line x1="168" y1="180" x2="206" y2="232" stroke={fast} markerEnd="url(#gd-b)" />
-      <text x={150} y={118} style={faint}>fan-out</text>
-      <text x={14} y={70} style={faint}>slow branch</text>
-      <text x={14} y={84} style={faint}>Gemini, seconds</text>
-      <text x={14} y={262} style={{ ...faint, fill: fast }}>fast loop</text>
-      <text x={14} y={276} style={{ ...faint, fill: fast }}>every tick</text>
-
-      {/* slow branch */}
-      <Box x={208} y={48} w={100} h={44} title="read_rune" note="spell card as PNG" />
-      <line x1="308" y1="70" x2="326" y2="70" stroke={line} markerEnd="url(#gd-a)" />
-      <Box x={328} y={48} w={100} h={44} title="spellwright" note="Gemini sings" dashed />
-      <line x1="428" y1="70" x2="446" y2="70" stroke={line} markerEnd="url(#gd-a)" />
-      <Box x={448} y={48} w={100} h={44} title="spell_ready" note="the arena judges" />
-      <line x1="548" y1="70" x2="592" y2="70" stroke={line} markerEnd="url(#gd-a)" />
-      {route(570, 60, "stored")}
-      <Box x={594} y={48} w={80} h={44} title="rest" note="branch ends" />
-      <path d="M498 48 C 498 14, 258 14, 258 46" fill="none" stroke={line} markerEnd="url(#gd-a)" />
-      {route(378, 22, "retry")}
-
-      {/* fast loop */}
-      <Box x={208} y={214} w={124} h={44} title="tick" note="Discriminative model" accent />
-      <line x1="332" y1="236" x2="360" y2="236" stroke={fast} markerEnd="url(#gd-b)" />
-      {route(346, 228, "next", fast)}
-      <Box x={362} y={214} w={104} h={44} title="check_spell" note="spell ready?" accent />
-      <path d="M414 214 C 414 182, 280 182, 280 212" fill="none" stroke={fast} markerEnd="url(#gd-b)" />
-      {route(347, 180, "again", fast)}
-      <path d="M232 214 C 232 170, 232 130, 232 94" fill="none" stroke={fast} markerEnd="url(#gd-b)" />
-      {route(206, 156, "recast", fast)}
-
-      {/* the end of the match */}
-      <path d="M258 258 C 258 300, 300 304, 326 304" fill="none" stroke={fast} markerEnd="url(#gd-b)" />
-      {route(282, 296, "done", fast)}
-      <Box x={328} y={284} w={104} h={40} title="summarise" note="the match log" />
-      <line x1="432" y1="304" x2="456" y2="304" stroke={line} markerEnd="url(#gd-a)" />
-      <Box x={458} y={284} w={90} h={40} title="bard" note="Gemini tells it" dashed />
-      <line x1="548" y1="304" x2="572" y2="304" stroke={line} markerEnd="url(#gd-a)" />
-      <Box x={574} y={284} w={84} h={40} title="finish" />
-    </svg>
-  );
-}
-
 /* ── step 6 ─────────────────────────────────────────────────────────────── */
-
-function ThreeTools() {
-  const tools: [number, string, string, boolean, boolean, string[]][] = [
-    [12, "Code", "the rule is explicit", false, false, ["free · instant", "exact"]],
-    [197, "Discriminative model", "the answer is bounded", true, false, ["~100 ms · micro-cents", "calibrated"]],
-    [382, "Language model", "the answer is prose", false, true, ["seconds · cents", "checked by the Discriminative model"]],
-  ];
-  return (
-    <svg viewBox="0 0 560 162" role="img" aria-label="Code, the Discriminative model and a language model, and what each answers">
-      {tools.map(([x, title, note, accent, dashed, lines]) => (
-        <g key={title}>
-          <Box x={x} y={22} w={165} h={80} title={title} note={note} accent={accent} dashed={dashed} />
-          {lines.map((line, k) => (
-            <text key={line} x={x + 82.5} y={122 + k * 16} textAnchor="middle" style={faint}>{line}</text>
-          ))}
-        </g>
-      ))}
-    </svg>
-  );
-}
 
 /* ── registry ───────────────────────────────────────────────────────────── */
 
 export const FIGURES: Record<string, () => ReactNode> = {
   "two-paths": TwoPaths,
-  "parallel-branch": ParallelBranch,
   "conversation-to-decisions": ConversationToDecisions,
   "system-components": SystemComponents,
   "moves-and-responses": MovesAndResponses,
@@ -1561,14 +946,19 @@ export const FIGURES: Record<string, () => ReactNode> = {
   "cost-shape": CostShape,
   "arena-graph": ArenaGraph,
   "graph-definition": GraphDefinition,
-  "event-loop": EventLoop,
   "workflow-mode-structure": WorkflowModeStructure,
   "tick-node": TickNode,
-  "check-spell-node": CheckSpellNode,
-  "read-rune-node": ReadRuneNode,
-  "spellwright-node": SpellwrightNode,
-  "spell-ready-node": SpellReadyNode,
   "three-tools": ThreeTools,
+  "three-models": ThreeModels,
+  "model-limits": ModelLimits,
+  "game-mapping": GameMapping,
+  "two-sdks": TwoSdks,
+  "model-keys": ModelKeys,
+  "latency-scale": LatencyScale,
+  "loop-routes": LoopRoutes,
+  "card-alongside": CardAlongside,
+  "card-questions": CardQuestions,
+  "read-card-node": ReadCardNode,
 };
 
 /* An image from content/images/, or a placeholder box that says where to put

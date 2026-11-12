@@ -419,8 +419,9 @@ function ConsoleTask({ task, color }: { task: Task; color: string }) {
 }
 
 /* Step 2: choose the decision model. The script checks each choice before it
-   keeps it; a choice that fails is marked, and when Jev and DiffusionGemma
-   have both failed, rehearsal mode is set up instead. */
+   keeps it; a choice that fails is marked, and the next one that has not
+   failed is selected. Every choice also takes a Gemini API key, which step 6
+   uses to read the spell card and write the tale. */
 const MODEL_OPTIONS: { id: string; label: string; detail: string }[] = [
   { id: "jev", label: "Jev (TypeSafe)", detail: "Hosted by TypeSafe. Needs a TypeSafe API key. No GPU needed." },
   {
@@ -428,27 +429,39 @@ const MODEL_OPTIONS: { id: string; label: string; detail: string }[] = [
     label: "DiffusionGemma",
     detail: "Google's open model on a GPU VM in your Google Cloud project. Needs billing and GPU quota. About 15 minutes the first time, in the background.",
   },
-  { id: "rehearsal", label: "Rehearsal", detail: "No model: a word list that speaks the same API. For trying the workshop out." },
+  { id: "gemini", label: "Gemini Decisions", detail: "Hosted by Google, on the Gemini Developer API. Needs a Gemini API key. No GPU needed." },
 ];
 const TYPESAFE_SIGN_UP = "https://console.typesafe.ai/login?returnTo=%2Fkeys";
+const GEMINI_KEYS = "https://aistudio.google.com/apikey";
 
 function ModelSetupTask({ task, color }: { task: Task; color: string }) {
   const [model, setModel] = useState("jev");
   const [key, setKey] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
   const [failed, setFailed] = useState<string[]>([]);
   const running = useRef<string | null>(null);
   const run = useRunStream();
 
-  const start = useCallback(async (choice: string, secret: string) => {
+  const start = useCallback(async (choice: string, secret: string, geminiSecret: string) => {
     running.current = choice;
     try {
-      const { token } = await api.modelSetup(choice, secret);
+      const { token } = await api.modelSetup(choice, secret, geminiSecret);
       run.begin(token);
       setKey("");
+      setGeminiKey("");
     } catch (error) {
       run.fail(String(error));
     }
   }, [run.begin, run.fail]);
+
+  // Open on the model the workbench is using now, if one is set up.
+  useEffect(() => {
+    api.env().then((env) => {
+      if (running.current !== null) return;
+      if (env.jev.startsWith("gemini decisions")) setModel("gemini");
+      else if (env.jev.startsWith("gemma")) setModel("gemma");
+    }).catch(() => {});
+  }, []);
 
   // A DiffusionGemma setup keeps going on the server while the student moves
   // on; coming back picks up its output where it is.
@@ -466,18 +479,13 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
     if (run.state !== "done" || running.current === null) return;
     const choice = running.current;
     running.current = null;
-    if (run.code === 0 || choice === "rehearsal") return;
+    if (run.code === 0) return;
     const now = failed.includes(choice) ? failed : [...failed, choice];
     setFailed(now);
-    if (now.includes("jev") && now.includes("gemma")) {
-      setModel("rehearsal");
-      start("rehearsal", "");
-    } else {
-      setModel(MODEL_OPTIONS.find((option) => !now.includes(option.id))?.id ?? "rehearsal");
-    }
-  }, [run.state, run.code, failed, start]);
+    setModel(MODEL_OPTIONS.find((option) => !now.includes(option.id))?.id ?? choice);
+  }, [run.state, run.code, failed]);
 
-  const both = failed.includes("jev") && failed.includes("gemma");
+  const all = MODEL_OPTIONS.every((option) => failed.includes(option.id));
   return (
     <>
       {task.explain && (
@@ -537,10 +545,32 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
           />
         </div>
       )}
+      <div className="mt-3 space-y-2">
+        <p className="text-sm" style={{ color: "var(--fg-muted)" }}>
+          {model === "gemini"
+            ? "Gemini Decisions needs a Gemini API key. Step 6 uses the same key to read the spell card and write the tale."
+            : "Step 6 also needs a Gemini API key, to read the spell card and write the tale."}{" "}
+          Create one in{" "}
+          <a href={GEMINI_KEYS} target="_blank" rel="noreferrer" style={{ color, fontWeight: 600 }}>
+            Google AI Studio ↗
+          </a>
+          , then paste it here. The key is checked with one request before it is saved to <code>.env</code>.
+        </p>
+        <input
+          type="password"
+          value={geminiKey}
+          onChange={(event) => setGeminiKey(event.target.value)}
+          placeholder="GEMINI_API_KEY (leave empty to use the key already in .env)"
+          autoComplete="off"
+          spellCheck={false}
+          className="w-full rounded-xl border px-3.5 py-2 font-mono text-sm outline-none"
+          style={{ background: "var(--viewer-bg)", color: "var(--viewer-fg)", borderColor: "var(--hairline-strong)" }}
+        />
+      </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={() => start(model, model === "jev" ? key : "")}
+          onClick={() => start(model, model === "jev" ? key : "", geminiKey)}
           disabled={run.state === "running"}
           className="rounded-lg px-3.5 py-1.5 text-sm font-medium text-white disabled:opacity-60"
           style={{ background: color }}
@@ -552,9 +582,9 @@ function ModelSetupTask({ task, color }: { task: Task; color: string }) {
             This runs in the background, so you can move on. The model light at the top right turns green when it is ready.
           </span>
         )}
-        {both && (
+        {all && (
           <span className="text-xs" style={{ color: "var(--fg-muted)" }}>
-            Neither Jev nor DiffusionGemma works here, so the workshop uses rehearsal mode.
+            None of the three worked. Check the keys and try again.
           </span>
         )}
       </div>

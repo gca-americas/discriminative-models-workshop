@@ -1,14 +1,17 @@
 """How this workshop reaches its decision model, wherever that model lives.
 
-Three places a Discriminative-model-style call can go, all through the same typesafe-sdk:
+The places a decision call can go. The first four speak Jev's API and are
+reached with typesafe-sdk; the last is reached with google-genai
+(scripts/decisions.py holds both calls):
 
   typesafe     https://api.typesafe.ai            TYPESAFE_API_KEY from the console
   gemma-vm     http://127.0.0.1:8096              DiffusionGemma on your own L4 VM, through
                                                   an IAP tunnel (scripts/setup_gemma.sh)
   cloud-run    https://djev-…run.app              DiffusionGemma on your own Cloud Run,
                                                   authorised with a Google identity token
-  self-hosted  any other Discriminative-model-compatible server    e.g. OpenJev on a GPU box
-  rehearsal    http://127.0.0.1:4811              scripts/fake_jev.py, a word list
+  self-hosted  any other Jev-compatible server    e.g. OpenJev on a GPU box
+  gemini       generativelanguage.googleapis.com  Gemini Decisions (gemini-decision-1),
+                                                  GEMINI_API_KEY, when .env has JEV101_MODEL=gemini
 
 The Cloud Run case is the one that needs help. The service is private, so each
 request carries a Google identity token as its bearer key. Tokens last an hour
@@ -28,11 +31,11 @@ _token = {"value": "", "at": 0.0}
 
 
 def backend(base_url: str | None = None) -> str:
+    if os.environ.get("JEV101_MODEL", "").strip().lower() == "gemini":
+        return "gemini"
     base = (base_url if base_url is not None else os.environ.get("TYPESAFE_BASE_URL", "")).rstrip("/")
     if not base or "api.typesafe.ai" in base:
         return "typesafe"
-    if base.endswith(":" + os.environ.get("JEV101_FAKE_PORT", "4811")):
-        return "rehearsal"
     if ".run.app" in base:
         return "cloud-run"
     if os.environ.get("JEV101_GEMMA_VM"):
@@ -55,14 +58,13 @@ def _identity_token() -> str:
 
 
 def prepare() -> None:
-    """Make sure TYPESAFE_API_KEY is something the current backend accepts."""
+    """Make sure TYPESAFE_API_KEY is something the current backend accepts.
+    Gemini Decisions has its own key, GEMINI_API_KEY, and needs nothing here."""
     kind = backend()
     if kind == "cloud-run" and os.environ.get("JEV101_JEV_AUTH", "gcloud") == "gcloud":
         os.environ["TYPESAFE_API_KEY"] = _identity_token()
     elif kind in ("self-hosted", "cloud-run", "gemma-vm"):
         os.environ.setdefault("TYPESAFE_API_KEY", "self-hosted")
-    elif kind == "rehearsal":
-        os.environ.setdefault("TYPESAFE_API_KEY", "rehearsal")
 
 
 def client_kwargs() -> dict:
@@ -78,6 +80,6 @@ def describe() -> str:
         "typesafe": "The Discriminative model on api.typesafe.ai",
         "cloud-run": f"DiffusionGemma on Cloud Run ({base})",
         "gemma-vm": f"DiffusionGemma on the {os.environ.get('JEV101_GEMMA_VM')} VM, via the IAP tunnel ({base})",
-        "self-hosted": f"a Discriminative-model-compatible server at {base}",
-        "rehearsal": "the rehearsal stand-in (a word list, not a model)",
+        "self-hosted": f"a Jev-compatible server at {base}",
+        "gemini": "Gemini Decisions (gemini-decision-1) on the Gemini Developer API",
     }[backend()]
