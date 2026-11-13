@@ -14,6 +14,8 @@
        :::
 
        :::file path="scripts/setup_gemma.sh" label="Show the script"
+       :::file path="scripts/decisions.py" label="Show ask_async" symbols="ask_async,ask_gemini_async"
+         (symbols: show only these top-level functions, in the order named)
        :::
 
    Sections nest, so the parser is line-based rather than a regular
@@ -27,7 +29,7 @@ export type Block =
   | { kind: "callout"; variant: "key" | "note" | "warn"; html: string }
   | { kind: "figure"; id: string; caption: string; src?: string }
   | { kind: "console"; url: string; label: string; note: string }
-  | { kind: "file"; path: string; label: string }
+  | { kind: "file"; path: string; label: string; symbols: string[] }
   | { kind: "exercise"; id: string; plain: boolean }
   | { kind: "columns"; children: Block[][] }
   | { kind: "section"; kicker: string; headline: string; children: Block[] };
@@ -108,7 +110,10 @@ export function parseBlocks(markdown: string): Block[] {
       blocks.push({ kind: "exercise", id: attribute(rawArgs, "id"), plain: attribute(rawArgs, "plain") === "true" });
     } else if (name === "file") {
       // A button that shows a project file, read-only, in place.
-      blocks.push({ kind: "file", path: attribute(rawArgs, "path"), label: attribute(rawArgs, "label") });
+      blocks.push({
+        kind: "file", path: attribute(rawArgs, "path"), label: attribute(rawArgs, "label"),
+        symbols: attribute(rawArgs, "symbols").split(",").map((name) => name.trim()).filter(Boolean),
+      });
     } else if (name === "console") {
       // A way out to the console from inside the reading, for the things that
       // are worth seeing in the real product rather than only described.

@@ -71,4 +71,7 @@ answered = ask(
 answered.answers["response"].choice
 answered.model, answered.sdk            # which model and SDK answered
 ```
+
+The same file has `ask_async`, which takes the same arguments and is awaited.
+Step 6 uses it inside the workflow.
 :::

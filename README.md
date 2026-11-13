@@ -51,8 +51,8 @@ is missing it asks for the ID of an existing project and records it. It then
 installs uv and the Python packages, records the project in `.env` as
 `GOOGLE_CLOUD_PROJECT`, creates a Gemini API key in the project, checks it
 with one request and saves it to `.env`, sets Gemini Decisions as the decision
-model when none is chosen yet, puts the exercise files in place, builds the
-page, starts the workbench in the background and runs
+model when none is chosen yet, puts the exercise files in place, starts the
+workbench in the background and runs
 `scripts/check_setup.py`. Re-running it keeps your exercise files and reuses
 the key; `scripts/starter.sh` resets the files. Step 2 of the workbench
 switches the decision model to Jev or DiffusionGemma. Compute Engine and IAP
@@ -192,7 +192,10 @@ scripts/start.sh            # http://localhost:4900
 scripts/dev.sh              # API on 4900, Vite with hot reload on 5274
 ```
 
-You need `uv`, `node`, `gcloud`, and these settings in a `.env` at the root.
+You need `uv`, `gcloud`, and these settings in a `.env` at the root. The built
+page ships in `web/dist`, so Node is only needed when you change something
+under `web/`. Run `scripts/build_page.sh` after such a change and commit
+`web/dist` with it.
 `setup_codelab.sh` writes the project line, and step 2 writes the rest:
 
 ```

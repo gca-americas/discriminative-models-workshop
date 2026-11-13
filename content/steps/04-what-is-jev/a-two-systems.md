@@ -12,7 +12,7 @@ find and trust, with no idea how sure the model was.
 :::figure id="two-paths" caption="Models handle it differently."
 :::
 
-The Discriminative model takes the state and your typed questions and answers
+The Discriminative model takes the input and your typed questions and answers
 in one pass, in milliseconds. Each answer comes with a calibrated probability:
 0.9 means right nine times out of ten. There is no text to parse and no JSON
 to coax out of it.
@@ -72,19 +72,26 @@ probabilities and a confidence, with no output tokens.
 :::
 :::
 
-:::section kicker="Request structure" headline="State and questions"
-Each call sends state and questions. The state is the text you want judged.
-It can be a string, a JSON object, or a list. The questions ask what you want
-to know about that text. Each question has a type: Choice, Score, or Noul. The
-questions are processed in parallel, which lets it respond fast. You can add
-multiple questions if needed.
+:::section kicker="Request structure" headline="Input and questions"
+Each call sends an input and questions. The input is what you want judged.
+The questions ask what you want to know about it. Each question has a type:
+Choice, Score, or Noul. The questions are processed in parallel, which lets
+the model respond fast. You can add multiple questions if needed.
+
+The two APIs name the input differently:
+
+| | Jev, DiffusionGemma | Gemini Decisions |
+|---|---|---|
+| **Field** | `state` | `input` |
+| **Can be** | a string, a JSON object, or a list | text, or content blocks such as an image, audio, video or a PDF |
 
 :::figure id="one-request" caption="You choose the questions and how you would like them answered (their types)."
 :::
 :::
 
 :::section kicker="Question types" headline="Choice, Score, and Noul"
-**Choice** picks one option from a set you name, up to 255 of them. The answer
+**Choice** picks one option from a set you name, up to 255 of them on Jev and on
+Gemini Decisions. The answer
 is the option, a probability for every option, and a confidence. Use it when
 the options have no order between them: block high, block low, dodge, strike,
 wait.
@@ -92,8 +99,8 @@ wait.
 :::figure id="primitive-choice"
 :::
 
-**Score** rates the state along ordered levels you describe, from two to ten
-of them. The answer is a position along the scale (a decimal, so 1.4 means
+**Score** rates the input along ordered levels you describe, from two to ten
+of them. Gemini Decisions accepts more levels and recommends two to ten. The answer is a position along the scale (a decimal, so 1.4 means
 "between one and two, closer to one"), the probability of each level, and a
 confidence. Use it when the answer is a matter of degree: how hard the
 incoming hit will land.

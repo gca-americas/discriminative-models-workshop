@@ -93,7 +93,13 @@ parts:
           explain: >
             `read_card` calls Gemini Decisions with the questions, but its
             `input` is empty. Drag in the block that sends the card, then check
-            and save.
+            and save. This code uses the Google Gen AI SDK directly:
+            `client.aio.decisions.create(...)` is the SDK's own async call,
+            and `await` waits for its answer. The next exercise uses
+            `ask_async`, the workshop's helper from `scripts/decisions.py`. It
+            makes this same SDK call for you when your model is Gemini
+            Decisions, and the TypeSafe SDK's call when it is Jev or
+            DiffusionGemma.
           template: |
             async def read_card(ctx: Context, node_input) -> Event:
                 """Send the spell card to Gemini Decisions and ask what is on it."""
@@ -162,9 +168,14 @@ parts:
           - tick
           explain: >
             `tick` takes the next move, asks the model which response is
-            right, reads the answer, and picks the next edge. `ask_async` is
-            the workshop's helper: it takes the same arguments for every
-            model. Drag the pieces into the slots, then check and save.
+            right, reads the answer, and picks the next edge. The call is
+            `ask_async`, introduced just above: step 5's `ask`, awaited. It
+            is the workshop's own function, from `scripts/decisions.py`,
+            imported at the top of the file. For Gemini Decisions it makes
+            the `client.aio.decisions.create(...)` call you used to send the
+            image. It takes the same two arguments for every model, `about`
+            and `questions`. Drag the
+            pieces into the slots, then check and save.
           template: |
             async def tick(ctx: Context, node_input) -> Event:
                 """One move, one decision, then pick the next edge."""
@@ -189,6 +200,8 @@ parts:
                 return Event(output=decision, route=route,
                              state={"tick": number, "decisions": so_far})
           context: |
+            from decisions import ask_async      # step 5's ask(), in its awaitable form
+
             QUESTIONS = {
                 "response": {
                     "type": "choice",
@@ -229,6 +242,12 @@ parts:
             code: over = number >= len(MOVES)
           - id: route
             code: route = "done" if over else "next"
+          - id: blocking
+            code: ask(
+            why: >
+              `ask` is the step 5 call, and it is not awaitable. `tick` is an
+              async node, so it awaits `ask_async`, which lets the card reader
+              run while the model answers.
           - id: chat
             code: 'messages=[{"role": "user", "content": move}],'
             why: >
@@ -261,7 +280,7 @@ parts:
             code: route = "next"
             why: 'Always `"next"` never ends: after the last move the loop needs `"done"`.'
           hints:
-          - 'The call is `ask_async`, and it takes two arguments: `about`, what the model judges, and `questions`, already defined above tick as `QUESTIONS`.'
+          - 'The line starts with `await`, so the call is the awaitable one, `ask_async`. It takes two arguments: `about`, what the model judges, and `questions`, already defined above tick as `QUESTIONS`.'
           - >
             The answer is under the question's name, `"response"`. `over` is
             true on the last move, when `number` equals `len(MOVES)`, and then

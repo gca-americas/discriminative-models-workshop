@@ -27,7 +27,7 @@ The *blank* is a gap in an answer form. The server writes the form itself,
 such as `response: ▢`, and leaves one gap per question. The model's only job
 is to score what belongs in each gap.
 
-1. The prompt holds the state and each question, with every allowed answer as
+1. The prompt holds the input and each question, with every allowed answer as
    a short label: `a` for block_high, `b` for block_low, and so on.
 2. The server adds the answer form, with one blank per question.
 3. The model reads the prompt and the form in one pass and gives every token

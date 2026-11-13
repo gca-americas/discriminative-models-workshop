@@ -1,7 +1,6 @@
 .venv/
 app/.venv/
 node_modules/
-web/dist/
 runs/
 __pycache__/
 *.pyc

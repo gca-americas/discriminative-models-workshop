@@ -491,11 +491,11 @@ export function LoopRoutes() {
   const outcomes: [number, string, string, string, boolean][] = [
     [10, '["next"]', "tick", "the fight goes on", true],
     [78, '["read", "next"]', "read_card and tick", "a spell was cast · read the new card, keep fighting", true],
-    [146, '["done"]', "summarize, then bard", "0 HP, or tick 60", false],
+    [146, '["done"]', "summarize, then bard", "0 HP, or tick 45", false],
   ];
   return (
     <svg viewBox="0 0 680 206" role="img"
-         aria-label="After each exchange, tick returns its routes. Next, while the fight goes on: tick again. Read and next together, when a spell was just cast: read_card starts in the background for the new card, and tick goes on. Done, at 0 HP or tick 60: summarize, then bard.">
+         aria-label="After each exchange, tick returns its routes. Next, while the fight goes on: tick again. Read and next together, when a spell was just cast: read_card starts in the background for the new card, and tick goes on. Done, at 0 HP or tick 45: summarize, then bard.">
       <defs><Arrow id="lr-a" color={LINE} /><Arrow id="lr-b" color={ACCENT} /></defs>
       <Box x={10} y={76} w={120} h={54} title="tick" note="one exchange" accent />
       <line x1="130" y1="103" x2="158" y2="103" stroke={LINE} markerEnd="url(#lr-a)" />
@@ -601,7 +601,7 @@ export function TickNode() {
   );
   return (
     <svg viewBox="0 0 680 262" role="img"
-         aria-label="One pass through tick: read whether a spell is ready from state, get the ogre's move from the arena, ask your decision model with ask_async, apply the thresholds in choose(), and let the arena resolve the blow. Then the routes: next, back to tick, while the fight goes on; read and next together, to read_card and tick, when a spell was just cast; done, to summarize, when someone reaches 0 HP or tick 60.">
+         aria-label="One pass through tick: read whether a spell is ready from state, get the ogre's move from the arena, ask your decision model with ask_async, apply the thresholds in choose(), and let the arena resolve the blow. Then the routes: next, back to tick, while the fight goes on; read and next together, to read_card and tick, when a spell was just cast; done, to summarize, when someone reaches 0 HP or tick 45.">
       <defs><Arrow id="tn-a" color={LINE} /><Arrow id="tn-b" color={ACCENT} /></defs>
       <text x={10} y={18} style={faint}>one tick · ask_async is awaited, so the card reader keeps running</text>
       <StepRow prefix="tn" steps={[
@@ -626,7 +626,7 @@ export function TickNode() {
 
       <Box x={22} y={200} w={200} h={50} title="tick" note="the fight goes on" accent />
       <Box x={240} y={200} w={200} h={50} title="read_card + tick" note="a spell was cast; keep fighting too" accent />
-      <Box x={458} y={200} w={200} h={50} title="summarize" note="0 HP, or tick 60" />
+      <Box x={458} y={200} w={200} h={50} title="summarize" note="0 HP, or tick 45" />
     </svg>
   );
 }

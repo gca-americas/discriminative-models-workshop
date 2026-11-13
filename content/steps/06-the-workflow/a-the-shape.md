@@ -1,10 +1,10 @@
 :::section kicker="Limitation" headline="Limits of per-tick decisions"
 Step 5 ended in a draw. The model read every move and took no damage, and
-the ogre was still standing at tick 60.
+the ogre was still standing at tick 45.
 
 The numbers explain it. The ogre has 300 hit points. A right call counters
-for 3, and a strike into an opening does 8, because the hide is thick. Sixty
-ticks of good decisions do not add up to 300.
+for 3, and a strike into an opening does 8, because the hide is thick.
+Forty-five ticks of good decisions do not add up to 300.
 
 Only a spell does real damage: 45 for a perfect casting, 67 when it lands on
 an opening. The spell card in the corner of the ring has been there the whole
@@ -58,7 +58,7 @@ At the bell the graph fans out to `read_card` and `tick`. After each exchange
 |---|---|---|
 | `"next"` | The fight goes on | `tick` again |
 | `"read"`, with `"next"` | A spell was just cast, so a new card is on the screen | `read_card`, alongside the fight |
-| `"done"` | Someone is at 0 HP, or tick 60 | `summarize`, then `bard` |
+| `"done"` | Someone is at 0 HP, or tick 45 | `summarize`, then `bard` |
 
 The fight and the card reader never call each other. They share **state**: `read_card`
 writes the spell into state, and each `tick` looks there and offers `cast`

@@ -27,7 +27,7 @@ OPPONENT = {
 
 YOU_HP = 100
 FOE_HP = 300
-MAX_TICKS = 60
+MAX_TICKS = 45
 REACTION_SECONDS = 2.0        # how long a person gets to read a telegraph
 
 # Every telegraph has a right answer the engine knows and the player does not.

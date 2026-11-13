@@ -61,6 +61,12 @@ async def read_card(ctx: Context, node_input) -> Event:
 The arena judges the reading against the spell card's hidden answer in
 `sung()`.
 
+`read_card` uses the Google Gen AI SDK directly, because it always goes to
+Gemini Decisions. `client.aio.decisions.create(...)` is the SDK's own async
+call. The fight loop below goes to whichever model you chose, so it uses the
+workshop's helper `ask_async`, which makes this same call for Gemini
+Decisions and the TypeSafe SDK's call for Jev and DiffusionGemma.
+
 `read_card` returns a state change and no `output`. The next tick finds the
 spell in state, and a path with no output is not a second ending for the
 graph: ADK requires one terminal output, and that is the fight's.
@@ -77,6 +83,31 @@ fizzles and burns the spell card. The model is not asked whether it was right.
 
 :::section kicker="Game loop" headline="The fight loop"
 **tick()** plays one exchange, then picks the next edge.
+
+It asks the model with `ask_async`, the awaitable form of the `ask` you used
+in step 5. Both are the workshop's own functions, in `scripts/decisions.py`,
+not part of an SDK. `ask_async` calls the async method of the SDK for your
+model:
+
+| Model | What `ask_async` calls |
+|---|---|
+| Jev, DiffusionGemma | `AsyncTypeSafeClient().system_one(state=..., questions=...)` |
+| Gemini Decisions | `genai.Client().aio.decisions.create(model=..., input=..., questions=...)` |
+
+It takes the same two arguments as `ask` and returns the same answers. The
+only difference is the `await` in front:
+
+```python
+answered = ask(about=..., questions=...)                # step 5: waits, and holds everything up
+answered = await ask_async(about=..., questions=...)    # step 6: waits, and lets other work run
+```
+
+:::file path="scripts/decisions.py" label="Show ask_async" symbols="ask_async,ask_gemini_async,ask_typesafe_async"
+:::
+
+`tick` is an `async` function, so while it waits for the model at that
+`await`, the card reader can run. With plain `ask`, the whole workflow would
+stand still until the answer came back.
 
 :::figure id="tick-node"
 :::
@@ -108,10 +139,9 @@ this tick. `ctx.state` and `Event(state=...)` are ADK's shared workflow
 state, which is how the card reader's spell reaches the fight.
 
 The questions are built fresh each tick, so `cast` appears only when there is
-a spell to cast. `ask_async` is the same call as `ask` from step 5, awaited:
-while it waits for the model, the event loop runs the card reader. It uses
-the TypeSafe SDK or the Google Gen AI SDK, depending on your model. `route`
-can be a list, and `["read", "next"]` takes both edges at once.
+a spell to cast. `ask_async` uses the TypeSafe SDK or the Google Gen AI SDK,
+depending on your model, the same way `ask` does. `route` can be a list, and
+`["read", "next"]` takes both edges at once.
 
 The arena itself is behind a small client: the running app over HTTP when
 there is one, so the page shows the fight; the engine in-process when there

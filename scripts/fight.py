@@ -5,8 +5,8 @@
     python3 scripts/fight.py --moves     just list the ogre's telegraphs
 
 Same rules and same questions as the arena app (app/engine.py), so there is
-one copy to review. What this adds is the shape of it at speed: sixty ticks,
-sixty calls, and the time and money they took. And the lesson: reflexes keep
+one copy to review. What this adds is the shape of it at speed: forty-five ticks,
+forty-five calls, and the time and money they took. And the lesson: reflexes keep
 you alive, and the ogre still walks away.
 """
 

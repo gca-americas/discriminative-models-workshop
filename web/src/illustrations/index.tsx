@@ -441,11 +441,11 @@ function TwoPaths() {
 
 function OneRequest() {
   return (
-    <svg viewBox="0 0 560 200" role="img" aria-label="One call sends the state and three questions. The answers come back together: response block_high with confidence 0.87, danger 1.8 of 2, exposed 0.08.">
+    <svg viewBox="0 0 560 200" role="img" aria-label="One call sends the input, which Jev calls state and Gemini Decisions calls input, and three questions. The answers come back together: response block_high with confidence 0.87, danger 1.8 of 2, exposed 0.08.">
       <defs><Arrow id="or-a" color="var(--accent)" /></defs>
       <rect x={16} y={16} width={230} height={168} rx="10" fill="var(--overlay)" stroke="var(--hairline)" />
       <text x={28} y={36} style={faint}>request</text>
-      <Box x={28} y={46} w={206} h={40} title="state" note="the opponent, what it just did" />
+      <Box x={28} y={46} w={206} h={40} title="input / state" note="the opponent, what it just did" />
       <Box x={28} y={96} w={206} h={24} title="response · choice" />
       <Box x={28} y={126} w={206} h={24} title="danger · score" />
       <Box x={28} y={156} w={206} h={22} title="exposed · noul" />
@@ -626,7 +626,7 @@ function NextWordVsBlank() {
       {/* discriminative read: a blank */}
       <text x={cols[0]} y={dm.y + 6} style={{ ...faint, fill: "var(--accent)" }}>discriminative model · a blank</text>
       <rect x={cols[0]} y={dm.y + 14} width={176} height={78} rx="8" fill={dm.box} stroke={dm.line} />
-      <text x={cols[0] + 10} y={dm.y + 34} style={faint}>state + labels a … e</text>
+      <text x={cols[0] + 10} y={dm.y + 34} style={faint}>input + labels a … e</text>
       <text x={cols[0] + 10} y={dm.y + 58} style={{ ...mono, fontSize: 12, fill: "var(--fg)" }}>response: ▢</text>
       <text x={cols[0] + 10} y={dm.y + 80} style={faint}>the form, one blank each</text>
       <line x1={190} y1={dm.y + 52} x2={204} y2={dm.y + 52} stroke={dm.line} markerEnd={dm.arrow} />
@@ -669,13 +669,13 @@ function HowProbabilities() {
   const probs: [string, number][] = [["block_high", 0.89], ["block_low", 0.04], ["dodge", 0.03], ["wait", 0.02], ["strike", 0.02]];
   return (
     <svg viewBox="0 0 600 262" role="img"
-         aria-label="How DiffusionGemma gets a probability. The prompt lists the state and the allowed answers as labels a to e. In one pass the model scores every token at the answer blank. The server keeps only the label scores and normalises them: block high 0.89, block low 0.04, dodge 0.03, wait 0.02, strike 0.02. If unsure, it reads again from another random start and averages.">
+         aria-label="How DiffusionGemma gets a probability. The prompt lists the input and the allowed answers as labels a to e. In one pass the model scores every token at the answer blank. The server keeps only the label scores and normalises them: block high 0.89, block low 0.04, dodge 0.03, wait 0.02, strike 0.02. If unsure, it reads again from another random start and averages.">
       <defs><Arrow id="hp-a" color="var(--hairline-strong)" /><Arrow id="hp-b" color="var(--accent)" /></defs>
 
       {/* 1 · the prompt */}
       <text x={14} y={22} style={head}>THE PROMPT</text>
       <rect x={14} y={30} width={172} height={190} rx="10" fill="var(--card)" stroke="var(--hairline-strong)" />
-      <text x={26} y={50} style={faint}>state</text>
+      <text x={26} y={50} style={faint}>input</text>
       <text x={26} y={66} style={mono}>The ogre raises its</text>
       <text x={26} y={80} style={mono}>club high.</text>
       <text x={26} y={104} style={faint}>question: right response?</text>

@@ -11,7 +11,7 @@ message before a person or a language model sees it.
 :::
 
 :::section kicker="Cost" headline="Input-based pricing"
-A whole fight, sixty decisions with three questions each, costs a fraction
+A whole fight, forty-five decisions with three questions each, costs a fraction
 of a cent. Jev is priced at $0.042 per million input tokens and Gemini
 Decisions at $0.10, with a no-cost tier.
 Output tokens are zero because nothing was generated.

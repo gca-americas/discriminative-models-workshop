@@ -108,7 +108,18 @@ function ConsoleLink({ url, label, note }: { url: string; label: string; note: s
 
 /* A project file behind a button: the reader asks to see it, and it opens
    in place, read-only, in the theme's code colours. */
-function FileReveal({ path, label }: { path: string; label: string }) {
+/* The lines of one top-level Python function: from its `def` to the last
+   line before the next top-level statement. */
+function functionLines(lines: string[], name: string): string[] {
+  const start = lines.findIndex((line) => new RegExp(`^(async )?def ${name}\\(`).test(line));
+  if (start < 0) return [`# ${name} is not in this file`];
+  let end = start + 1;
+  while (end < lines.length && (lines[end].trim() === "" || /^\s/.test(lines[end]))) end += 1;
+  while (end > start && lines[end - 1].trim() === "") end -= 1;
+  return lines.slice(start, end);
+}
+
+function FileReveal({ path, label, symbols = [] }: { path: string; label: string; symbols?: string[] }) {
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<string[] | null>(null);
   const [problem, setProblem] = useState("");
@@ -120,7 +131,12 @@ function FileReveal({ path, label }: { path: string; label: string }) {
       try {
         const file = await api.fileRead(path);
         if (file.error) setProblem(file.error);
-        else setLines(file.lines ?? []);
+        else {
+          const all = file.lines ?? [];
+          setLines(symbols.length
+            ? symbols.flatMap((name, i) => [...(i ? ["", ""] : []), ...functionLines(all, name)])
+            : all);
+        }
       } catch {
         setProblem("could not read the file");
       }
@@ -189,7 +205,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
           return <Figure key={index} id={block.id} caption={block.caption} src={block.src} />;
         }
         if (block.kind === "file") {
-          return <FileReveal key={index} path={block.path} label={block.label} />;
+          return <FileReveal key={index} path={block.path} label={block.label} symbols={block.symbols} />;
         }
         if (block.kind === "console") {
           return (

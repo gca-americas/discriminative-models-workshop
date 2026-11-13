@@ -4,7 +4,8 @@
 #
 # Run ./setup_project.sh FIRST: this script reads the project it recorded in
 # ~/project_id.txt. When it finishes you have:
-#   • uv, a .venv, and exactly what uv.lock pins inside it
+#   • uv, a .venv, and exactly what uv.lock pins inside it (no Node needed:
+#     the built page ships in web/dist)
 #   • a Gemini API key, created in that project, checked with one real
 #     request and saved to .env
 #   • Gemini Decisions set as the decision model, so the workbench opens ready
@@ -32,53 +33,9 @@ die() {
 }
 
 say "Discriminative models workshop · setup"
+STARTED=$SECONDS
 
-# ── 1 · python env + deps (uv owns both), and node for the page ─────────────
-UV_WAS_INSTALLED=0
-if ! command -v uv >/dev/null 2>&1; then
-    info "uv not found — installing it from astral.sh"
-    curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || die \
-        "Could not install uv." \
-        "Install it by hand, then re-run ./setup_codelab.sh:" \
-        "  curl -LsSf https://astral.sh/uv/install.sh | sh" \
-        "  source ~/.local/bin/env"
-    if [ -f "$HOME/.local/bin/env" ]; then
-        set +u
-        # shellcheck disable=SC1091
-        . "$HOME/.local/bin/env"
-        set -u
-    fi
-    export PATH="$HOME/.local/bin:$PATH"
-    UV_WAS_INSTALLED=1
-fi
-command -v uv >/dev/null 2>&1 || die \
-    "uv installed but is not on PATH." \
-    "Put it there, then re-run ./setup_codelab.sh:" \
-    "  source ~/.local/bin/env"
-tick "uv $(uv --version 2>/dev/null | awk '{print $2}')"
-
-[ -d .venv ] || uv venv >/dev/null
-# A corporate package index on a machine that is not on that network refuses
-# every download. PyPI has everything this lab needs, so try it there next.
-uv_sync() {
-    if uv sync --quiet "$@" < /dev/null; then return 0; fi
-    echo "  the configured package index did not answer; trying PyPI directly"
-    env -u UV_INDEX_URL -u UV_EXTRA_INDEX_URL -u UV_INDEX -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL \
-        UV_DEFAULT_INDEX=https://pypi.org/simple uv sync --quiet "$@" < /dev/null
-}
-uv_sync
-[ -x .venv/bin/python ] || die \
-    "uv sync finished but .venv/bin/python is missing." \
-    "Clear the env and let uv rebuild it:" \
-    "  rm -rf .venv && ./setup_codelab.sh"
-tick ".venv in sync with uv.lock (typesafe-sdk $(.venv/bin/python -c 'import importlib.metadata as m;print(m.version("typesafe-sdk"))' 2>/dev/null || echo pinned), google-genai $(.venv/bin/python -c 'import importlib.metadata as m;print(m.version("google-genai"))' 2>/dev/null || echo pinned), google-adk $(.venv/bin/python -c 'import google.adk;print(google.adk.__version__)' 2>/dev/null || echo pinned))"
-
-command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 || die \
-    "node and npm are needed to build the workbench page." \
-    "Cloud Shell has them. On a laptop install Node 20 or newer, then re-run ./setup_codelab.sh."
-tick "node $(node --version) · npm $(npm --version)"
-
-# ── 2 · the project and the APIs this lab calls ─────────────────────────────
+# ── 1 · the project, and the APIs the Gemini key needs ──────────────────────
 say "1 · Project and APIs"
 
 PROJECT=""
@@ -128,7 +85,7 @@ fi
     "  echo YOUR_PROJECT_ID > ~/project_id.txt" \
     "  gcloud config set project YOUR_PROJECT_ID"
 
-gcloud config set project "$PROJECT" -q >/dev/null 2>&1 || true
+(gcloud config set project "$PROJECT" -q >/dev/null 2>&1 < /dev/null || true) &
 
 # Enabling an API that is already on is a no-op, so this is safe to repeat.
 enable_api() {
@@ -144,9 +101,61 @@ enable_api() {
 }
 # Compute Engine and IAP are only for DiffusionGemma: scripts/setup_gemma.sh
 # enables them when you choose it in step 2.
+#
+# The two APIs the Gemini key needs take up to a minute to enable. Start that
+# now, in the background, and install the Python packages meanwhile.
+mkdir -p runs
+ENABLE_PID=""
+if ! grep -q '^GEMINI_API_KEY=.' .env 2>/dev/null; then
+    gcloud services enable generativelanguage.googleapis.com apikeys.googleapis.com \
+        --project "$PROJECT" -q > runs/enable-apis.log 2>&1 < /dev/null &
+    ENABLE_PID=$!
+    info "enabling the Gemini and API Keys APIs in the background"
+fi
+
+# ── 2 · python env + deps (uv owns both) ────────────────────────────────────
+say "2 · Python packages"
+UV_WAS_INSTALLED=0
+if ! command -v uv >/dev/null 2>&1; then
+    info "uv not found — installing it from astral.sh"
+    curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || die \
+        "Could not install uv." \
+        "Install it by hand, then re-run ./setup_codelab.sh:" \
+        "  curl -LsSf https://astral.sh/uv/install.sh | sh" \
+        "  source ~/.local/bin/env"
+    if [ -f "$HOME/.local/bin/env" ]; then
+        set +u
+        # shellcheck disable=SC1091
+        . "$HOME/.local/bin/env"
+        set -u
+    fi
+    export PATH="$HOME/.local/bin:$PATH"
+    UV_WAS_INSTALLED=1
+fi
+command -v uv >/dev/null 2>&1 || die \
+    "uv installed but is not on PATH." \
+    "Put it there, then re-run ./setup_codelab.sh:" \
+    "  source ~/.local/bin/env"
+tick "uv $(uv --version 2>/dev/null | awk '{print $2}')"
+
+[ -d .venv ] || uv venv >/dev/null
+# A corporate package index on a machine that is not on that network refuses
+# every download. PyPI has everything this lab needs, so try it there next.
+uv_sync() {
+    if uv sync --quiet "$@" < /dev/null; then return 0; fi
+    echo "  the configured package index did not answer; trying PyPI directly"
+    env -u UV_INDEX_URL -u UV_EXTRA_INDEX_URL -u UV_INDEX -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL \
+        UV_DEFAULT_INDEX=https://pypi.org/simple uv sync --quiet "$@" < /dev/null
+}
+uv_sync
+[ -x .venv/bin/python ] || die \
+    "uv sync finished but .venv/bin/python is missing." \
+    "Clear the env and let uv rebuild it:" \
+    "  rm -rf .venv && ./setup_codelab.sh"
+tick ".venv in sync with uv.lock (typesafe-sdk $(.venv/bin/python -c 'import importlib.metadata as m;print(m.version("typesafe-sdk"))' 2>/dev/null || echo pinned), google-genai $(.venv/bin/python -c 'import importlib.metadata as m;print(m.version("google-genai"))' 2>/dev/null || echo pinned), google-adk $(.venv/bin/python -c 'import google.adk;print(google.adk.__version__)' 2>/dev/null || echo pinned))"
 
 # ── 3 · .env: ready for step 2; a Gemini API key already there is checked ───
-say "2 · .env"
+say "3 · .env"
 
 [ -f .env ] || cp .env.example .env
 # Kept until the end of this step: if this run changes .env, the old one
@@ -175,21 +184,28 @@ tick "project $PROJECT recorded, for DiffusionGemma if you choose it"
 info "a decision model already chosen in .env is kept; with none, the next step sets Gemini Decisions"
 
 # ── 4 · the Gemini API key: use the one in .env, or create one in the project ─
-say "3 · Gemini API key"
+say "4 · Gemini API key"
 mkdir -p runs
 # A Gemini API key is a Google Cloud API key limited to the Generative Language
 # API, so it can be created here, in your project, with no visit to AI Studio.
 # A key already in .env is checked and kept.
 KEY_ID=jev-workshop-gemini
-# retry CMD...: up to 6 tries, 10 s apart. A project minutes old answers 403 or
+# retry CMD...: up to 15 tries, 4 s apart. A project minutes old answers 403 or
 # "API not enabled" while its IAM policy and the new APIs propagate.
 retry() {
     local n
-    for n in 1 2 3 4 5 6; do
+    for n in $(seq 1 15); do
         "$@" >/dev/null 2>runs/gemini-key.err < /dev/null && return 0
-        if [ "$n" -lt 6 ]; then info "not ready yet, retrying in 10 s ($n/6)"; sleep 10; fi
+        [ "$n" -lt 15 ] && sleep 4
     done
     return 1
+}
+# The APIs started enabling in the background, in step 1. Wait for that; if it
+# failed, try again here.
+apis_enabled() {
+    if [ -n "$ENABLE_PID" ] && wait "$ENABLE_PID"; then ENABLE_PID=""; return 0; fi
+    ENABLE_PID=""
+    retry gcloud services enable generativelanguage.googleapis.com apikeys.googleapis.com --project "$PROJECT" -q
 }
 key_exists() { gcloud services api-keys describe "$KEY_ID" --project "$PROJECT" --format='value(name)'; }
 make_key() {        # a fixed key ID: a re-run reuses the key instead of making another
@@ -202,14 +218,13 @@ make_key() {        # a fixed key ID: a re-run reuses the key instead of making 
 }
 
 GEMINI_READY=0
-if grep -q '^GEMINI_API_KEY=.' .env && .venv/bin/python scripts/verify_gemini_key.py < /dev/null; then
+if [ -z "$ENABLE_PID" ] && grep -q '^GEMINI_API_KEY=.' .env && .venv/bin/python scripts/verify_gemini_key.py < /dev/null; then
     tick "the Gemini API key in .env works"
     GEMINI_READY=1
 else
     info "creating a Gemini API key in $PROJECT"
     NEW_KEY=""
-    if retry gcloud services enable generativelanguage.googleapis.com apikeys.googleapis.com --project "$PROJECT" -q \
-       && retry make_key; then
+    if apis_enabled && retry make_key; then
         NEW_KEY="$(gcloud services api-keys get-key-string "$KEY_ID" --project "$PROJECT" \
                     --format='value(keyString)' 2>/dev/null < /dev/null || true)"
     fi
@@ -249,7 +264,7 @@ fi
 # The files students fill in ship in their TODO form, and a copy of each lives
 # in starter/. A re-run never touches them: your work is kept. To put them back
 # the way the workshop ships them, run scripts/starter.sh.
-say "4 · Starting state"
+say "5 · Starting state"
 placed=0
 for f in scripts/first_call.py branches/read_card.py branches/fight_loop.py; do
     if [ ! -f "$f" ]; then
@@ -272,15 +287,27 @@ if [ ! -f runs/stage.json ]; then
     fi
 fi
 
-# ── 6 · the workbench: build the page, start the server in the background ───
-say "5 · The workbench"
+# ── 6 · the workbench: the page, and the server in the background ───────────
+say "6 · The workbench"
 mkdir -p runs
-if ! (cd web && ([ -d node_modules ] || npm install --no-fund --no-audit) && npm run build) > runs/setup.log 2>&1; then
-    tail -20 runs/setup.log >&2
-    die "The page did not build. The last lines of runs/setup.log are above." \
-        "Run it by hand to see more:  cd web && npm install && npm run build"
+# The built page ships in the repo, so a fresh setup needs no Node and no
+# npm install. It is rebuilt only when web/ changed since it was built.
+if .venv/bin/python scripts/page_hash.py --check < /dev/null; then
+    tick "page ready (web/dist, shipped with the repo)"
+elif command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+    info "web/ changed since the page was built: building it (about a minute the first time)"
+    if ! scripts/build_page.sh > runs/setup.log 2>&1 < /dev/null; then
+        tail -20 runs/setup.log >&2
+        die "The page did not build. The last lines of runs/setup.log are above." \
+            "Run it by hand to see more:  scripts/build_page.sh"
+    fi
+    tick "page built (web/dist)"
+elif [ -f web/dist/index.html ]; then
+    warn "web/ changed since the page was built, and Node is not installed: using the page as shipped."
+else
+    die "There is no built page, and Node is not installed to build one." \
+        "Install Node 20 or newer, then re-run ./setup_codelab.sh."
 fi
-tick "page built (web/dist)"
 
 # Replace a workbench that is already running, rather than start a second one.
 # Only what listens on this port is stopped, never another app's server.
@@ -300,7 +327,7 @@ else
 fi
 
 # ── 7 · preflight, run for you ──────────────────────────────────────────────
-say "6 · Preflight"
+say "7 · Preflight"
 .venv/bin/python scripts/check_setup.py < /dev/null || info "no decision model yet: step 2 of the workbench sets one up"
 
 # ── where to go next ────────────────────────────────────────────────────────
@@ -311,7 +338,7 @@ else
     LAB_URL="http://localhost:$PORT"
 fi
 
-printf '\n\033[1m%s\033[0m\n' "Setup finished. The workbench is already running."
+printf '\n\033[1m%s\033[0m\n' "Setup finished in $((SECONDS - STARTED)) s. The workbench is already running."
 printf '\n'
 printf '  \033[1mOpen this and start at step 0\033[0m\n'
 printf '      %s/step/introduction\n\n' "$LAB_URL"

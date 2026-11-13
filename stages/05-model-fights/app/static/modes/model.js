@@ -117,7 +117,7 @@
     } finally {
       if (g === gen) {
         busy = false;
-        if (running && !paused) setTimeout(() => g === gen && modelTick(), 750);
+        if (running && !paused) setTimeout(() => g === gen && modelTick(), 200);
       }
     }
   }
