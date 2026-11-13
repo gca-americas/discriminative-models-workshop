@@ -67,8 +67,10 @@ load_env()
 # GEMINI_API_KEY. Vertex AI settings left in the shell would send the bard there.
 os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
 
-GEMINI_MODEL = os.environ.get("JEV101_GEMINI_MODEL", "gemini-flash-latest")
-TICK_SECONDS = float(os.environ.get("JEV101_TICK_SECONDS", "0.5"))   # pace, so a person can watch
+# A versioned name: the "-latest" alias is not served on the API version the
+# Google Gen AI SDK 3.x uses by default. Setup saves a checked name in .env.
+GEMINI_MODEL = os.environ.get("JEV101_GEMINI_MODEL") or "gemini-3.8-flash"
+TICK_SECONDS = float(os.environ.get("JEV101_TICK_SECONDS", "0.1"))   # a short pause, so a person can watch
 ARENA_URL = os.environ.get("JEV101_ARENA_URL", f"http://127.0.0.1:{os.environ.get('JEV101_APP_PORT', '8090')}")
 
 

@@ -2,7 +2,7 @@
 
     python3 scripts/pick_gemini_model.py
 
-It tries the model already configured (JEV101_GEMINI_MODEL, or gemini-flash-latest)
+It tries the model already configured (JEV101_GEMINI_MODEL, or gemini-3.8-flash)
 with one tiny request. If that model is not available to the key, it lists the
 models the key can see and tries the newest plain Flash model, then the next.
 
@@ -23,7 +23,7 @@ import warnings
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT = "gemini-flash-latest"
+DEFAULT = "gemini-3.8-flash"     # a versioned name: "-latest" aliases are not served on API v1
 FLASH = re.compile(r"^gemini-(\d+(?:\.\d+)?)-flash$")      # plain Flash: no lite, image, tts, preview
 
 
@@ -81,17 +81,21 @@ def main() -> int:
         # No access is not a missing model: another model will not answer either.
         print(f"Gemini refused the call: {why}", file=sys.stderr)
         return 1
-    print(f"{configured} is not available here; looking for another Flash model.", file=sys.stderr)
+    print(f"{configured} did not answer ({why.splitlines()[0][:160]}); looking for another Flash model.",
+          file=sys.stderr)
     try:
         options = candidates(gemini)
     except Exception as failure:
         print(f"Could not list the models: {str(failure)[:200]}", file=sys.stderr)
         return 1
+    last = why
     for name in options:
-        if not answers(gemini, name):
+        last = answers(gemini, name)
+        if not last:
             print(name)
             return 0
-    print("No Flash model answered. Check the key's access to Gemini.", file=sys.stderr)
+    print(f"No Flash model answered. Tried {', '.join(options) or 'none listed'}. "
+          f"Last error: {last.splitlines()[0][:200]}", file=sys.stderr)
     return 1
 
 

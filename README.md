@@ -70,10 +70,10 @@ https://aistudio.google.com/apikey. Gemini Decisions uses it as a decision
 model, and step 6 uses it to read the spell card (`gemini-decision-1`) and to
 write the tale. Every model choice needs this key because of step 6.
 
-The tale is written by `gemini-flash-latest` unless `JEV101_GEMINI_MODEL` says
+The tale is written by `gemini-3.8-flash` unless `JEV101_GEMINI_MODEL` says
 otherwise. Once a Gemini API key works, `setup_codelab.sh` and
 `scripts/setup_model.sh` run `scripts/pick_gemini_model.py`, which tries
-`gemini-flash-latest`, falls back to the newest Flash model the key can call,
+`gemini-3.8-flash`, falls back to the newest Flash model the key can call,
 and saves the result as `JEV101_GEMINI_MODEL`.
 
 The decision model is chosen in step 2 of the workbench, or from a terminal
@@ -252,7 +252,7 @@ the decision model in "Discriminative model fights"; ③ calls all of them in
                then four choice questions about the image ───────────────────────────► Gemini Decisions
                                                                       (gemini-decision-1)
       bard: the tale, once, after the fight ────────────────────────► Gemini
-                                                                      (gemini-flash-latest)
+                                                                      (gemini-3.8-flash)
       posts every decision and card reading back to ② over HTTP
 ```
 
@@ -417,8 +417,8 @@ awaits its model, `read_card` runs.
 `bard` is an `LlmAgent` on Gemini. It writes the tale once, after the fight,
 and is the only language model call in the workflow.
 
-Gemini is `gemini-flash-latest` unless `JEV101_GEMINI_MODEL` says otherwise.
-`JEV101_TICK_SECONDS` (default 0.5) paces the loop so a person can watch.
+Gemini is `gemini-3.8-flash` unless `JEV101_GEMINI_MODEL` says otherwise.
+`JEV101_TICK_SECONDS` (default 0.1) paces the loop so a person can watch.
 `JEV101_ARENA_URL` points the workflow at the app (default the app port).
 
 ### Game rules

@@ -96,7 +96,7 @@ def main() -> int:
         print("gemini          not set up yet — step 6 needs a Gemini API key. Add it in step 2,")
         print("                or create one at https://aistudio.google.com/apikey")
     print(f"gemini models   gemini-decision-1 (spell card) · "
-          f"{os.environ.get('JEV101_GEMINI_MODEL', 'gemini-flash-latest')} (tale)")
+          f"{os.environ.get('JEV101_GEMINI_MODEL') or 'gemini-3.8-flash'} (tale)")
     print()
     print("model: ready" if jev_ok else "model: not ready")
     return 0 if jev_ok else 1
