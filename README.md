@@ -350,7 +350,6 @@ scripts/
 content/            course.yaml + one directory per step (see "Authoring steps")
 server/             FastAPI: content, intent matching, runs over SSE, probes, terminal, app proxy, ADK web
 web/                React + Vite + Tailwind: the page
-slides/             the source of the workshop's slides (see slides/README.md)
 ```
 
 ### The app, one stage at a time
